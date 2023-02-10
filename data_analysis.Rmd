@@ -29,7 +29,7 @@ tsdisplay(test_data, main = "Testing Data")
 ## Box-Cox Transformation??
 ```{r}
 opt_lambda <- BoxCox.lambda(train_data)
-opt_lambda
+cat(paste0("Optimal lambda value: ", opt_lambda))
 ```
 
 
@@ -64,6 +64,14 @@ opt_model_with_season
 ```
 
 
+```{r (Forecasting)}
+mod_for <- forecast(opt_model_with_season, h=length(test_data))$mean
+
+accuracy(mod_for, test_data)
+
+autoplot(full_data, main = "Forecast", ylab="") + 
+  autolayer(mod_for)
+```
 
 
 

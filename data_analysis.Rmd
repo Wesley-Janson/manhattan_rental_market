@@ -11,7 +11,7 @@ library(tseries)
 library(forecast)
 library(TSA)
 library(MLmetrics)
-setwd("/Users/wrjanson/Documents/UChicago/Time Series/chicago_rental_index") # Need to think of the general way to set this up
+#setwd("/Users/wrjanson/Documents/UChicago/Time Series/chicago_rental_index") # Need to think of the general way to set this up ##DK: why do we need to set WD? as below, can read CSV without it as long as this file is in the same directory as the CSV
 ```
 
 ```{r}

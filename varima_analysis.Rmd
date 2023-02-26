@@ -96,9 +96,24 @@ diff_function <- function(in_data) {
   
 diff_function(data)
 ```
+
+```{r}
+# a single nonseasonal difference is sufficient to make the inventory_train stationary:
+kpss.test(diff(BoxCox(data$inventory_train,lambda='auto'),differences=1,lag=1),null='Level')
+# this also works following 1 nonseasonal difference, though not as well (note: this is also what auto.arima finds):
+kpss.test(diff(diff(BoxCox(data$inventory_train,lambda='auto'),differences=1,lag=12),differences=1,lag=1),null='Level')
+
+# note: the kpss.test warning is because they did a shitty stupid implementation
+# basically we'll never see a p-value above 0.1, but it is above that
+```
+
+
 ```{r (Examine Seasonally Differenced Plots)}
 tsdisplay(diff(BoxCox(rent_train, lambda = 'auto'), lag=12)) # AR(1)
 tsdisplay(diff(BoxCox(inventory_train, lambda = 'auto'), diff=3, lag=12))  # AR(1)?
+
+# added:
+tsdisplay(diff(diff(BoxCox(inventory_train, lambda = 'auto'), differences=1, lag=12),differences=1,lag=1))
 ```
 
 ### Attempt to do a SVARIMA, but at the moment the p,q,P selections are mostly just off vibes
@@ -111,6 +126,15 @@ preds <- sVARMApred(svarma_model, 0, h=length(rent_test))
 plot(preds$pred[,1])
 plot(preds$pred[,2])
 ```
+```{r}
+# added - why does it blow up? incredibly sensitive to specification
+svarma_model <- sVARMA(data, order=c(2,1,1), sorder=c(1,1,1), s=12)
+preds <- sVARMApred(svarma_model, 0, h=length(rent_test))
+plot(preds$pred[,1])
+plot(preds$pred[,2])
+```
+
+
 
 ```{r (Check residuals)}
 Box.test(svarma_model$residuals[,1], type = c("Ljung-Box"))

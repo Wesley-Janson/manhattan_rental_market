@@ -54,9 +54,14 @@ inventory_manhattan <- inventory_raw %>%
 
 tsdisplay(inventory_manhattan)
 
+rent_train <- window(median_rent_manhattan, start=2010, end=c(2020,1))
+inventory_train <- window(inventory_manhattan, start=2010, end=c(2020,1))
+rent_test <- window(median_rent_manhattan, start=c(2020,2), end=c(2022,12))
+inventory_test <- window(inventory_manhattan, start=c(2020,2), end=c(2022,12))
+
 # Box-Cox transformed
-tsdisplay(BoxCox(median_rent_manhattan,lambda='auto'))
-tsdisplay(BoxCox(inventory_manhattan,lambda='auto'))
+tsdisplay(BoxCox(rent_train,lambda='auto'))
+tsdisplay(BoxCox(inventory_train,lambda='auto'))
 ```
 
 ```{r}
@@ -69,23 +74,15 @@ tsdisplay(BoxCox(inventory_manhattan,lambda='auto'))
 ```{r}
 # we won't use the rental index as it appears to be smoothed
 # median rent SARIMA
-rent_sarima <- auto.arima(median_rent_manhattan,lambda='auto',trace=TRUE)
+rent_sarima <- auto.arima(rent_train,lambda='auto',trace=TRUE)
 checkresiduals(rent_sarima)
 ```
 
-Consider: might it be preferable to use ARIMA(2,1,1)(2,0,1)[12] with drift (4097.225) or ARIMA(3,1,1)(2,0,0)[12] with drift (4089.096) due to parsimony?
 
 ```{r}
-occams_rent_sarima <- Arima(median_rent_manhattan,order=c(2,1,1),seasonal=c(2,0,1),lambda='auto',include.drift=TRUE)
-checkresiduals(occams_rent_sarima)
-```
-
-
-```{r}
-# for some reason the Box-Cox transform ruins the inventory SARIMA?
-boxcox_inventory_sarima <- auto.arima(inventory_manhattan,lambda='auto')
+boxcox_inventory_sarima <- auto.arima(inventory_train,max.d=1,lambda='auto')
 checkresiduals(boxcox_inventory_sarima)
-inventory_sarima <- auto.arima(inventory_manhattan,lambda=NULL,trace=TRUE)
+inventory_sarima <- auto.arima(inventory_train,lambda=NULL,trace=TRUE)
 checkresiduals(inventory_sarima)
 ```
 

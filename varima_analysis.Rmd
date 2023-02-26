@@ -69,32 +69,32 @@ ccf(BoxCox(inventory_train,lambda='auto'), BoxCox(rent_train,lambda='auto'), lag
 ```
 
 
-
+## IGNORE
 ```{r (Testing for Stationarity)}
-data <- as.data.frame(cbind(rent_train, inventory_train))
+# data <- as.data.frame(cbind(rent_train, inventory_train))
 
-diff_function <- function(in_data) {
-  for (colm in 1:ncol(in_data)) {
-    i <- ts(in_data[,colm], start=c(2010,1), frequency=12)
-    lambda_i <- BoxCox.lambda(i)
-    print(paste0("Optimal lambda for ", colnames(data)[colm], " is ",lambda_i))
-    if (kpss.test(BoxCox(i, lambda = lambda_i))$p.value<0.05) {
-      if (kpss.test(diff(BoxCox(i, lambda = lambda_i), lag=12))$p.value<0.05) {
-        if (kpss.test(diff(BoxCox(i, lambda = lambda_i), diff=1, lag=12))$p.value<0.05) {
-          print("This data is fucked")
-        } else {
-          print(paste0("Variable ", colnames(data)[colm], " is stationary after seasonal differencing and first-order differencing"))
-        }
-      } else {
-        print(paste0("Variable ", colnames(data)[colm], " is stationary after seasonal differencing"))
-      }
-    } else {
-      print(paste0("Variable ", colnames(data)[colm], " does not need differencing"))
-    }
-  }
-}
-  
-diff_function(data)
+# diff_function <- function(in_data) {
+#   for (colm in 1:ncol(in_data)) {
+#     i <- ts(in_data[,colm], start=c(2010,1), frequency=12)
+#     lambda_i <- BoxCox.lambda(i)
+#     print(paste0("Optimal lambda for ", colnames(data)[colm], " is ",lambda_i))
+#     if (kpss.test(BoxCox(i, lambda = lambda_i))$p.value<0.05) {
+#       if (kpss.test(diff(BoxCox(i, lambda = lambda_i), lag=12))$p.value<0.05) {
+#         if (kpss.test(diff(BoxCox(i, lambda = lambda_i), diff=1, lag=12))$p.value<0.05) {
+#           print("This data is fucked")
+#         } else {
+#           print(paste0("Variable ", colnames(data)[colm], " is stationary after seasonal differencing and first-order differencing"))
+#         }
+#       } else {
+#         print(paste0("Variable ", colnames(data)[colm], " is stationary after seasonal differencing"))
+#       }
+#     } else {
+#       print(paste0("Variable ", colnames(data)[colm], " does not need differencing"))
+#     }
+#   }
+# }
+#   
+# diff_function(data)
 ```
 
 ```{r}
@@ -102,9 +102,6 @@ diff_function(data)
 kpss.test(diff(BoxCox(data$inventory_train,lambda='auto'),differences=1,lag=1),null='Level')
 # this also works following 1 nonseasonal difference, though not as well (note: this is also what auto.arima finds):
 kpss.test(diff(diff(BoxCox(data$inventory_train,lambda='auto'),differences=1,lag=12),differences=1,lag=1),null='Level')
-
-# note: the kpss.test warning is because they did a shitty stupid implementation
-# basically we'll never see a p-value above 0.1, but it is above that
 ```
 
 
@@ -118,23 +115,11 @@ tsdisplay(diff(diff(BoxCox(inventory_train, lambda = 'auto'), differences=1, lag
 
 ### Attempt to do a SVARIMA, but at the moment the p,q,P selections are mostly just off vibes
 ```{r (Seasonal ARIMA (SVARIMA))}
-data2 <- as.data.frame(cbind(BoxCox(rent_train, lambda = lambda_rent), BoxCox(inventory_train, lambda = lambda_inventory)))
-
-
 svarma_model <- sVARMA(data, order=c(1,0,1), sorder=c(1,1,0), s=12)
 preds <- sVARMApred(svarma_model, 0, h=length(rent_test))
 plot(preds$pred[,1])
 plot(preds$pred[,2])
 ```
-```{r}
-# added - why does it blow up? incredibly sensitive to specification
-svarma_model <- sVARMA(data, order=c(2,1,1), sorder=c(1,1,1), s=12)
-preds <- sVARMApred(svarma_model, 0, h=length(rent_test))
-plot(preds$pred[,1])
-plot(preds$pred[,2])
-```
-
-
 
 ```{r (Check residuals)}
 Box.test(svarma_model$residuals[,1], type = c("Ljung-Box"))
@@ -145,11 +130,19 @@ ccf(svarma_model$residuals[,2], svarma_model$residuals[,1], main="CCF of Residua
 ```
 
 
-## Intervention Analysis - Not sure we can do this in a VARIMA model???
-```{r (sVARIMA with intervention analysis for COVID-19 period)}
-int_data <- as.data.frame(cbind(median_rent_manhattan, inventory_manhattan, c(rep(0,length(rent_train)),rep(1,length(median_rent_manhattan)-length(rent_train)))))
-colnames(int_data)[3]<- "covid"
-intervention_model <- sVARMA(int_data, order=c(1,0,1), sorder=c(1,1,0), s=12)
+```{r}
+# added - why does it blow up? incredibly sensitive to specification
+svarma_model2 <- sVARMA(data, order=c(2,1,1), sorder=c(1,1,1), s=12)
+preds2 <- sVARMApred(svarma_model2, 0, h=length(rent_test))
+plot(preds2$pred[,1])
+plot(preds2$pred[,2])
+```
+
+## Using BoxCox data does not work?
+```{r}
+data_box_cox <- as.data.frame(cbind(BoxCox(rent_train, lambda = lambda_rent), BoxCox(inventory_train, lambda = lambda_inventory)))
+
+svarma_model <- sVARMA(data_box_cox, order=c(1,0,1), sorder=c(1,1,0), s=12)
 ```
 
 

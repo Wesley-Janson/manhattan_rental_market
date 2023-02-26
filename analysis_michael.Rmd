@@ -21,10 +21,6 @@ library(vars)
 ### Load and inspect data
 
 ```{r}
-# source: https://streeteasy.com/blog/data-dashboard/?agg=Total&metric=Inventory&type=Rentals&bedrooms=Any%20Bedrooms&property=Any%20Property%20Type&minDate=2010-01-01&maxDate=2022-12-01&area=Flatiron,Brooklyn%20Heights
-
-# note that we can also get breakdown by bedrooms if we want
-
 # set up generalizable path without local path hard coded
 base_path <- system('git rev-parse --show-toplevel', intern = T)
 
@@ -67,29 +63,49 @@ inventory_test <- window(inventory_manhattan, start=c(2020,2), end=c(2022,12))
 ```
 
 ```{r}
-inventory_manhattan %>% autoplot()
-median_rent_manhattan %>% autoplot()
-```
-```{r}
+inventory_train %>% autoplot()
+
 # log
 log(rent_train) %>%
   cbind(log(inventory_train)) %>%
   autoplot()
 ```
-
 ```{r}
-fit <- auto.arima(log(rent_train),
-                  #lambda = 'auto',
-                  xreg=log(inventory_train))
+#trying transformations
+BoxCox(rent_train,lambda='auto') %>% autoplot()
+BoxCox(inventory_train,lambda='auto') %>% autoplot()
 
-fit %>% summary()
+inventory_train %>% tsdisplay()
+#train %>% diff(lag=12, differences = 1) %>% tsdisplay()
+
+BoxCox(inventory_train,lambda='auto') %>% 
+  diff(lag=1, differences=1) %>% 
+  tsdisplay()
 ```
 
 ```{r}
+#regular linear model
 tslm(rent_train ~ inventory_train) %>% summary()
 
 tslm(rent_train ~ inventory_train) %>% checkresiduals()
 ```
+
+```{r}
+# log
+fit_log <- auto.arima(log(rent_train),
+                  #lambda = 'auto',
+                  xreg = log(inventory_train))
+
+fit_log %>% summary()
+
+fit <- auto.arima(rent_train,
+                  #lambda = 'auto',
+                  xreg = inventory_train)
+
+fit %>% summary()
+```
+
+
 
 ```{r}
 cbind("Regression Errors" = residuals(fit, type="regression"),

@@ -98,6 +98,7 @@ ccf(BoxCox(inventory_train,lambda='auto'), BoxCox(rent_train,lambda='auto'), lag
 ```
 
 ```{r}
+data <- as.data.frame(cbind(rent_train, inventory_train))
 # a single nonseasonal difference is sufficient to make the inventory_train stationary:
 kpss.test(diff(BoxCox(data$inventory_train,lambda='auto'),differences=1,lag=1),null='Level')
 # this also works following 1 nonseasonal difference, though not as well (note: this is also what auto.arima finds):

@@ -21,6 +21,8 @@ backout <- function(input_data, original_series, lambda_val, diff_num, lag_num) 
 
   # Undo differencing and BoxCox:
   undifferenced <- diffinv(input_data, differences = diff_num, lag=lag_num, xi=box_cox_orig[length(original_series)])
+  
+  
   output_data <- InvBoxCox(undifferenced, lambda = lambda_val)
   
   return(output_data)
@@ -110,7 +112,8 @@ lambda_sales_price <- BoxCox.lambda(sales_price_train)
 
 # Plot transformed data
 tsdisplay(BoxCox(rent_train, lambda=lambda_rent))
-tsdisplay(BoxCox(inventory_train,lambda=lambda_inventory))
+tsdisplay(BoxCox(inventory_train,lambda=lambda_rent))
+tsdisplay(BoxCox(inventory_train,lambda=0))
 tsdisplay(BoxCox(sales_days_train,lambda=lambda_sales_days))
 tsdisplay(BoxCox(sales_price_train,lambda=lambda_sales_price))
 ```
@@ -128,12 +131,16 @@ kpss.test(diff(BoxCox(sales_price_train,lambda=lambda_rent), differences=1,lag=1
 ```
 
 
-### VAR
+# VAR
+
+### Inventory
 ```{r}
 # VAR Selection
-VARselect(cbind(diff(BoxCox(rent_train, lambda = lambda_rent), differences = 1), diff(BoxCox(inventory_train,lambda=lambda_rent),differences=1,lag=1)), lag.max=12)$selection
+data_stationary <- cbind(diff(BoxCox(rent_train, lambda = lambda_rent), differences = 1), diff(BoxCox(inventory_train, lambda=0), differences = 1))
 
-inventory_var <- VAR(cbind(diff(BoxCox(rent_train, lambda = lambda_rent), differences = 1), diff(BoxCox(inventory_train,lambda=lambda_rent),differences=1,lag=1)), p=1, type='both', season=12)
+VARselect(data_stationary, lag.max=12)$selection
+
+inventory_var <- VAR(data_stationary, p=5, type='both', season=12)
 summary(inventory_var)
 
 ## Create forecast
@@ -143,9 +150,10 @@ var1_forecast <- forecast(inventory_var, h=length(rent_test))$forecast
 plot(backout(var1_forecast$diff.BoxCox.rent_train..lambda...lambda_rent...differences...1.$mean, rent_train, lambda_rent, 1, 1), ylab="Median Rent")
 
 # Plot of Inventory
-plot(backout(var1_forecast$diff.BoxCox.inventory_train..lambda...lambda_rent...differences...1..$mean, inventory_train, lambda_rent, 1, 1), ylab="Inventory")
+plot(backout(var1_forecast$diff.BoxCox.inventory_train..lambda...0...differences...1.$mean, inventory_train, 0, 1, 1), ylab="Inventory")
 
 ```
+
 
 ### BOTH White noise!!!!
 ```{r (Check residuals)}
@@ -156,11 +164,42 @@ checkresiduals(residuals(inventory_var)[,2], test=FALSE)
 Box.test(residuals(inventory_var)[,2], type = c("Ljung-Box"))
 ```
 
+### More plots
+```{r (Forecast Plots)}
+# Median Rent Plot
+rent_forecast <- backout(var1_forecast$diff.BoxCox.rent_train..lambda...lambda_rent...differences...1.$mean, rent_train, lambda_rent, 1, 1)
+autoplot(median_rent_manhattan, main = "Forecast for Median Rent", ylab="Median Rent") + 
+  autolayer(rent_forecast)
+
+# Inventory Plot
+inventory_forecast <- backout(var1_forecast$diff.BoxCox.inventory_train..lambda...0...differences...1.$mean, inventory_train, 0, 1, 1)
+autoplot(inventory_manhattan, main = "Forecast for Inventory", ylab="Inventory") + 
+  autolayer(inventory_forecast)
+```
+
+
+
+### Cross Validation
+```{r (Cross Validation)}
+
+```
 
 
 
 
 
+
+
+
+
+
+
+
+
+# DON'T MESS WITH CODE BELOW
+
+
+### Days for Sale
 ```{r}
 VARselect(cbind(diff(BoxCox(rent_train, lambda = lambda_rent), differences = 1, lag=1), diff(BoxCox(sales_days_train,lambda=lambda_rent),differences=1,lag=1)), lag.max=12)$selection
 
@@ -191,12 +230,36 @@ days_var <- VAR(cbind(median_rent_manhattan, sales_days_manhattan), p=10, type='
 
 
 ```{r}
-rent_train
-box_cox_rent <- BoxCox(rent_train, lambda = lambda_rent)
-box_cox_rent_diff <- diff(box_cox_rent, differences = 1)
+
+box_cox_inv[length(inventory_train)]
+
+
+inventory_train
+box_cox_inv <- BoxCox(inventory_train, lambda = 0)
+box_cox_inv_diff <- diff(box_cox_inv, differences=1, lag=1)
 
 # Trying to undo this:
-box_cox_rent2 <- diffinv(box_cox_rent_diff, differences = 1, xi=box_cox_rent[1])
+box_cox_inv2 <- diffinv(box_cox_inv_diff, differences=1, lag=1, xi=box_cox_inv[1])
+plot(InvBoxCox(box_cox_inv2, lambda = 0))
+
+plot(inventory_train)
+
+```
+
+
+
+
+
+
+
+```{r}
+
+rent_train
+box_cox_rent <- BoxCox(rent_train, lambda = lambda_rent)
+box_cox_rent_diff <- diff(box_cox_rent, differences=1, lag=1)
+
+# Trying to undo this:
+box_cox_rent2 <- diffinv(box_cox_rent_diff, differences=1, lag=1, xi=box_cox_rent[1])
 InvBoxCox(box_cox_rent2, lambda = lambda_rent)
 ```
 

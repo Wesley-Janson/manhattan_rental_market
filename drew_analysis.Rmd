@@ -69,6 +69,21 @@ tsdisplay(BoxCox(inventory_train,lambda='auto'))
 #save(median_rent_manhattan,file='data/median_rent_manhattan.RData')
 ```
 
+
+```{r}
+plot((rent_train-mean(rent_train))/var(rent_train)/30)
+lines((inventory_train-mean(inventory_train))/var(inventory_train),col='red')
+```
+
+```{r}
+rent_stationary <- diff(BoxCox(rent_train,lambda=0),differences=1,lag=1)
+inventory_stationary <- diff(BoxCox(inventory_train,lambda=0),differences=1,lag=1)
+
+plot((rent_stationary-mean(rent_stationary))/var(rent_stationary))
+lines(((inventory_stationary-mean(inventory_stationary)))/var(inventory_stationary),col='red')
+```
+
+
 ### SARIMA
 
 ```{r}
@@ -85,6 +100,7 @@ checkresiduals(boxcox_inventory_sarima)
 inventory_sarima <- auto.arima(inventory_train,lambda=NULL,trace=TRUE)
 checkresiduals(inventory_sarima)
 ```
+
 
 ### ETS
 
@@ -175,7 +191,7 @@ cross.validate = function(model,series,n_window,n_forecast){
 
 ```{r}
 # predict
-output_rent_arima <- cross.validate(rent_SARIMA_model,median_rent_manhattan,78,12)
-output_rent_ets <- cross.validate(rent_ets_model,median_rent_manhattan,78,12)
+output_rent_arima <- cross.validate(rent_SARIMA_model,rent_train,80,12)
+output_rent_ets <- cross.validate(rent_ets_model,rent_train,80,12)
 ```
 

@@ -91,6 +91,8 @@ tslm(rent_train ~ inventory_train) %>% checkresiduals()
 ```
 
 ```{r}
+# BoxCox(rent_train,lambda='auto')
+
 # predict inventory
 inventory_arima <- auto.arima(inventory_train, 
                               lambda = 'auto')
@@ -99,7 +101,7 @@ inventory_preds <- forecast(inventory_arima, h=24)$mean
 
 # fit model and predict
 fit <- auto.arima(rent_train,
-                  #lambda = 'auto',
+                  lambda = 'auto',
                   xreg = inventory_train)
 
 fit %>% summary()

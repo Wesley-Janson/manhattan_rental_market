@@ -4,7 +4,7 @@ output: html_notebook
 ---
 
 ```{r}
-rm(list=ls())
+# rm(list=ls())
 library(tidyverse)
 library(tseries)
 library(forecast)
@@ -13,8 +13,24 @@ library(dplyr)
 library(vars)
 ```
 
-### Load and inspect data
+### Helper function
+```{r (Untransform/undifference function for forecasts)}
 
+backout <- function(input_data, original_series, lambda_val, diff_num, lag_num) {
+  box_cox_orig <- BoxCox(original_series, lambda = lambda_val)
+
+  # Undo differencing and BoxCox:
+  undifferenced <- diffinv(input_data, differences = diff_num, lag=lag_num, xi=box_cox_orig[length(original_series)])
+  
+  
+  output_data <- InvBoxCox(undifferenced, lambda = lambda_val)
+  
+  return(output_data)
+}
+```
+
+
+### Load and inspect data
 ```{r}
 # source: https://streeteasy.com/blog/data-dashboard/?agg=Total&metric=Inventory&type=Rentals&bedrooms=Any%20Bedrooms&property=Any%20Property%20Type&minDate=2010-01-01&maxDate=2022-12-01&area=Flatiron,Brooklyn%20Heights
 
@@ -55,17 +71,6 @@ inventory_manhattan <- inventory_raw %>%
 
 tsdisplay(inventory_manhattan)
 
-rent_train <- window(median_rent_manhattan, start=2010, end=c(2020,1))
-inventory_train <- window(inventory_manhattan, start=2010, end=c(2020,1))
-rent_test <- window(median_rent_manhattan, start=c(2020,2), end=c(2022,12))
-inventory_test <- window(inventory_manhattan, start=c(2020,2), end=c(2022,12))
-
-# Box-Cox transformed
-tsdisplay(BoxCox(rent_train,lambda='auto'))
-tsdisplay(BoxCox(inventory_train,lambda='auto'))
-```
-
-```{r}
 #save(inventory_manhattan,file='data/inventory_manhattan.RData')
 #save(median_rent_manhattan,file='data/median_rent_manhattan.RData')
 sales_days_raw <- read.csv(paste0(base_path, '/data/Sales/daysOnMarket_All.csv'))
@@ -85,23 +90,125 @@ sales_price_manhattan <- sales_price_raw %>%
   na.omit() %>%
   ts(start=c(2010,1),frequency=12)
 
-
 tsdisplay(sales_price_manhattan)
+
+##### Training Data
+rent_train <- window(median_rent_manhattan, start=2010, end=c(2020,1))
+inventory_train <- window(inventory_manhattan, start=2010, end=c(2020,1))
+sales_days_train <- window(sales_days_manhattan, start=2010, end=c(2020,1))
+sales_price_train <- window(sales_price_manhattan, start=2010, end=c(2020,1))
+
+##### Testing Data
+rent_test <- window(median_rent_manhattan, start=c(2020,2), end=c(2022,12))
+inventory_test <- window(inventory_manhattan, start=c(2020,2), end=c(2022,12))
+sales_days_test <- window(sales_days_manhattan, start=c(2020,2), end=c(2022,12))
+sales_price_test <- window(sales_price_manhattan, start=c(2020,2), end=c(2022,12))
+
+# Box-Cox transformed
+lambda_rent <- BoxCox.lambda(rent_train)
+lambda_inventory <- BoxCox.lambda(inventory_train)
+lambda_sales_days <- BoxCox.lambda(sales_days_train)
+lambda_sales_price <- BoxCox.lambda(sales_price_train)
+
+# Plot transformed data
+tsdisplay(BoxCox(rent_train, lambda=lambda_rent))
+tsdisplay(BoxCox(inventory_train,lambda=lambda_rent))
+tsdisplay(BoxCox(inventory_train,lambda=0))
+tsdisplay(BoxCox(sales_days_train,lambda=lambda_sales_days))
+tsdisplay(BoxCox(sales_price_train,lambda=lambda_sales_price))
 ```
 
-### VAR
+```{r (Check for Stationarity)}
+kpss.test(BoxCox(rent_train,lambda=lambda_rent))
+kpss.test(BoxCox(inventory_train,lambda=lambda_rent))
+kpss.test(BoxCox(sales_days_train,lambda=lambda_rent))
+kpss.test(BoxCox(sales_price_train,lambda=lambda_rent))
 
-```{r}
+kpss.test(diff(BoxCox(rent_train,lambda=lambda_rent), differences=1,lag=1))
+kpss.test(diff(BoxCox(inventory_train,lambda=lambda_rent), differences=1,lag=1))
+kpss.test(diff(BoxCox(sales_days_train,lambda=lambda_rent), differences=1,lag=1))
+kpss.test(diff(BoxCox(sales_price_train,lambda=lambda_rent), differences=1,lag=1))
+```
+
+
 # VAR
-inventory_var <- VAR(cbind(median_rent_manhattan, inventory_manhattan), p=20, type='both', season=12)
+
+### Inventory
+```{r}
+# VAR Selection
+data_stationary <- cbind(diff(BoxCox(rent_train, lambda = lambda_rent), differences = 1), diff(BoxCox(inventory_train, lambda=0), differences = 1))
+
+VARselect(data_stationary, lag.max=12)$selection
+
+inventory_var <- VAR(data_stationary, p=5, type='both', season=12)
 summary(inventory_var)
+
+## Create forecast
+var1_forecast <- forecast(inventory_var, h=length(rent_test))$forecast
+
+# Plot of Median Rent
+plot(backout(var1_forecast$diff.BoxCox.rent_train..lambda...lambda_rent...differences...1.$mean, rent_train, lambda_rent, 1, 1), ylab="Median Rent")
+
+# Plot of Inventory
+plot(backout(var1_forecast$diff.BoxCox.inventory_train..lambda...0...differences...1.$mean, inventory_train, 0, 1, 1), ylab="Inventory")
+
 ```
 
 
+### BOTH White noise!!!!
+```{r (Check residuals)}
+checkresiduals(residuals(inventory_var)[,1], test=FALSE)
+Box.test(residuals(inventory_var)[,1], type = c("Ljung-Box"))
+
+checkresiduals(residuals(inventory_var)[,2], test=FALSE)
+Box.test(residuals(inventory_var)[,2], type = c("Ljung-Box"))
+```
+
+### More plots
+```{r (Forecast Plots)}
+# Median Rent Plot
+rent_forecast <- backout(var1_forecast$diff.BoxCox.rent_train..lambda...lambda_rent...differences...1.$mean, rent_train, lambda_rent, 1, 1)
+autoplot(median_rent_manhattan, main = "Forecast for Median Rent", ylab="Median Rent") + 
+  autolayer(rent_forecast)
+
+# Inventory Plot
+inventory_forecast <- backout(var1_forecast$diff.BoxCox.inventory_train..lambda...0...differences...1.$mean, inventory_train, 0, 1, 1)
+autoplot(inventory_manhattan, main = "Forecast for Inventory", ylab="Inventory") + 
+  autolayer(inventory_forecast)
+```
+
+
+
+### Cross Validation
+```{r (Cross Validation)}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+# DON'T MESS WITH CODE BELOW
+
+
+### Days for Sale
 ```{r}
-days_var <- VAR(cbind(median_rent_manhattan, sales_days_manhattan), p=10, type='both', season=12)
+VARselect(cbind(diff(BoxCox(rent_train, lambda = lambda_rent), differences = 1, lag=1), diff(BoxCox(sales_days_train,lambda=lambda_rent),differences=1,lag=1)), lag.max=12)$selection
+
+days_var <- VAR(cbind(diff(BoxCox(rent_train, lambda = lambda_rent), differences = 1, lag=1), diff(BoxCox(sales_days_train,lambda=lambda_rent),differences=1,lag=1)), p=4, type='both', season=12)
 summary(days_var)
 ```
+
+
+
 ```{r}
 prices_sales_var <- VAR(cbind(median_rent_manhattan, sales_price_manhattan), p=10, type='both', season=12)
 summary(prices_sales_var)
@@ -109,7 +216,6 @@ summary(prices_sales_var)
 
 
 ### Mortgages
-
 ```{r}
 mortgage_raw  <- read.csv(paste0(base_path, '/data/MORTGAGE30US.csv'))
 mortgage <- ts(mortgage_raw$MORTGAGE30US, start=c(2010,1),frequency=12)
@@ -118,3 +224,42 @@ tsdisplay(mortgage)
 
 ```
 days_var <- VAR(cbind(median_rent_manhattan, sales_days_manhattan), p=10, type='both', season=12)
+
+
+
+
+
+```{r}
+
+box_cox_inv[length(inventory_train)]
+
+
+inventory_train
+box_cox_inv <- BoxCox(inventory_train, lambda = 0)
+box_cox_inv_diff <- diff(box_cox_inv, differences=1, lag=1)
+
+# Trying to undo this:
+box_cox_inv2 <- diffinv(box_cox_inv_diff, differences=1, lag=1, xi=box_cox_inv[1])
+plot(InvBoxCox(box_cox_inv2, lambda = 0))
+
+plot(inventory_train)
+
+```
+
+
+
+
+
+
+
+```{r}
+
+rent_train
+box_cox_rent <- BoxCox(rent_train, lambda = lambda_rent)
+box_cox_rent_diff <- diff(box_cox_rent, differences=1, lag=1)
+
+# Trying to undo this:
+box_cox_rent2 <- diffinv(box_cox_rent_diff, differences=1, lag=1, xi=box_cox_rent[1])
+InvBoxCox(box_cox_rent2, lambda = lambda_rent)
+```
+

@@ -181,7 +181,49 @@ autoplot(inventory_manhattan, main = "Forecast for Inventory", ylab="Inventory")
 
 ### Cross Validation
 ```{r (Cross Validation)}
+exp_error = 0
+sl_error = 0
 
+for (i in 1:floor(length(inventory_train) * 0.25)){
+
+  n_sliding <- ceiling(length(inventory_train) * 0.75)
+  
+  expand_window_inv <- ts(inventory_train[1:n_sliding + i],frequency=12)
+  sliding_window_inv <-  ts(inventory_train[i:n_sliding],frequency=12)
+  
+  expand_window_rent <- ts(rent_train[1:n_sliding + i],frequency=12)
+  sliding_window_rent <-  ts(rent_train[i:n_sliding],frequency=12)
+  
+  test_rent <- ts(rent_train[n_sliding + i: n_sliding + 12],frequency=12)
+  test_inv <- ts(inventory_train[n_sliding + i: n_sliding + 12],frequency=12)
+  
+  
+    # VAR Selection
+  data_stationary_exp <- cbind(diff(BoxCox(expand_window_rent, lambda = lambda_rent), differences = 1), diff(BoxCox(expand_window_inv, lambda=0), differences = 1))
+  
+    data_stationary_sl <- cbind(diff(BoxCox(sliding_window_rent, lambda = lambda_rent), differences = 1), diff(BoxCox(sliding_window_inv, lambda=0), differences = 1))
+  
+  
+  inventory_var_exp <- VAR(data_stationary_exp, p=5, type='both', season=12)
+  
+  inventory_var_sl <- VAR(data_stationary_sl, p=5, type='both', season=12)
+  
+  ## Create forecast
+  var_forecast_exp <- forecast(inventory_var_exp, h=length(test_rent))$forecast
+  var_forecast_sl <- forecast(inventory_var_sl, h=length(test_rent))$forecast
+  
+  ##### CHECK WITH WESLEY - START #######
+  
+  pred_exp_rent <- backout(var_forecast_exp$diff.BoxCox.rent_train..lambda...lambda_rent...differences...1.$mean, expand_window_rent, lambda_rent, 1, 1)
+  pred_sl_rent <- backout(var_forecast_sl$diff.BoxCox.rent_train..lambda...lambda_rent...differences...1.$mean, rent_train, lambda_rent, 1, 1)
+  
+  ##### CHECK WITH WESLEY - END ##########
+
+  exp_error <- exp_error + (mean(preds - pred_exp_rent)^2 / floor(length(inventory_train) * 0.25))
+  sl_error <- sl_error + (mean(preds - pred_sl_rent)^2 / floor(length(inventory_train) * 0.25))
+  
+  }
+       
 ```
 
 

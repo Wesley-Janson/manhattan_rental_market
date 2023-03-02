@@ -102,57 +102,50 @@ fit %>%
   autoplot()
 ```
 
+```{r}
+source(paste0(base_path, '/cross_validation.R'))
+```
+
 ### Cross Validation
-```{r}
-# predict inventory
-inventory_arima <- auto.arima(inventory_train, 
-                              lambda = 'auto')
-inventory_preds <- forecast(inventory_arima, h=24)$mean
+```{r Drew Code}
+source(paste0(base_path, '/cross_validation_michael.R'))
+
+# # predict inventory
+# inventory_arima <- auto.arima(inventory_train, 
+#                               lambda = 'auto')
+# inventory_preds <- forecast(inventory_arima, h=24)$mean
+
+# rent_SARIMA_model = function(training_data){
+#   return(Arima(
+#     training_data,order=c(0,1,0),seasonal=c(2,0,0),
+#     include.drift=FALSE,lambda=rent_lambda,method='CSS-ML'))}
+
+rent_series <- rent_train
+covariate_series <- inventory_train
+
+rent_arma_err_inv_model = function(rent_series, covariate_series){
+  return(Arima(
+    rent_series,
+    covariate_series,
+    order=c(0,1,0),
+    seasonal=c(2,0,0),
+    include.drift=FALSE,
+    lambda='auto',
+    method='CSS-ML'))}
+
+# rent and inventory
+output_arma_err_inv <- cross.validate(model = rent_arma_err_inv_model, 
+                                      covariate_series = inventory_train, 
+                                      rent_series = rent_train, 
+                                      n_window = 80, 
+                                      n_forecast = 12)
+
+#output_arima[[1]]
+
+generate.plots(output_arma_err_inv)
 ```
 
-```{r}
-exp_error = 0
-sl_error = 0
-for (i in 1:floor(length(inventory_train) * 0.25)){
-  n_sliding <- ceiling(length(inventory_train) * 0.75)
-  
-  expand_window_inv <- ts(inventory_train[1:n_sliding + i],frequency=12)
-  sliding_window_inv <-  ts(inventory_train[i:n_sliding],frequency=12)
-  
-  expand_window_rent <- ts(rent_train[1:n_sliding + i],frequency=12)
-  sliding_window_rent <-  ts(rent_train[i:n_sliding],frequency=12)
-  
-  test_rent <- ts(rent_train[n_sliding + i: n_sliding + 12],frequency=12)
-  test_inv <- ts(inventory_train[n_sliding + i: n_sliding + 12],frequency=12)
 
-   ## Create forecast
-arma_err_forecast_exp <- forecast(fit,
-                                  h=length(test_rent), 
-                                  xreg=inventory_preds)
-
-arma_err_forecast_sl <- forecast(fit,
-                                 h=length(test_rent),
-                                 xreg=inventory_preds)
-  pred_exp_rent <- 
-  pred_sl_rent <-
-  
-  exp_error <- exp_error + (mean(preds - pred_exp_rent)^2 / floor(length(inventory_train) * 0.25))
-  sl_error <- sl_error + (mean(preds - pred_sl_rent)^2 / floor(length(inventory_train) * 0.25))
-  
-  }
-
-# # fit model 
-# fit <- auto.arima(rent_train,
-#                   lambda = 'auto',
-#                   xreg = inventory_train)
-# 
-# ## Create forecast
-# arma_err_forecast_exp <- forecast(fit,
-#                                   h=length(test_rent), 
-#                                   xreg=inventory_preds)
-# 
-# arma_err_forecast_sl <- forecast(fit, h=length(test_rent))$forecast
-```
 
 ### Attempt at intervention
 
@@ -181,8 +174,6 @@ fit <- auto.arima(median_rent_manhattan,
 
 fit %>% summary()
 fit %>% checkresiduals()
-
 auto.arima(median_rent_manhattan) %>% checkresiduals()
 ```
-
 

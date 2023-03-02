@@ -178,13 +178,31 @@ Box.test(residuals(inventory_var)[,2], type = c("Ljung-Box"))
 ```{r (Forecast Plots)}
 # Median Rent Plot
 rent_forecast <- backout(var1_forecast$diff.BoxCox.rent_train..lambda...lambda_rent...differences...1.$mean, rent_train, lambda_rent, 1, 1)
-autoplot(median_rent_manhattan, main = "Forecast for Median Rent", ylab="Median Rent") + 
-  autolayer(rent_forecast)
+
+autoplot(median_rent_manhattan, main = "COVID-19 Counterfactual - Median Rent", ylab="Median Rent ($)", xlab="Year") + 
+  autolayer(rent_forecast) + 
+  theme_classic() +
+  theme(legend.position="none") +
+  labs(caption="Forecasted values of VAR(5) model in red.") + 
+  scale_y_continuous(breaks=c(seq(3000,4200,400))) + 
+  geom_hline(yintercept=seq(2800,4200, by=200), size=0.1, linetype=2)
+
+ggsave("rent_counterfactual.png", width=128, height=96, units="mm")
+
+
 
 # Inventory Plot
 inventory_forecast <- backout(var1_forecast$diff.BoxCox.inventory_train..lambda...0...differences...1.$mean, inventory_train, 0, 1, 1)
-autoplot(inventory_manhattan, main = "Forecast for Inventory", ylab="Inventory") + 
-  autolayer(inventory_forecast)
+
+autoplot(inventory_manhattan, main = "COVID-19 Counterfactual - Inventory", ylab="Inventory", xlab="Year") + 
+  autolayer(inventory_forecast) +
+  theme_classic() +
+  theme(legend.position="none") +
+  labs(caption="Forecasted values of VAR(5) model in red.") +
+  scale_y_continuous(breaks=c(seq(10000,40000,10000))) + 
+  geom_hline(yintercept=seq(10000,40000, by=10000), size=0.1, linetype=2)
+
+ggsave("inventory_counterfactual.png", width=128, height=96, units="mm")
 ```
 
 

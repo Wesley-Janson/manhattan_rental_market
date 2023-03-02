@@ -58,14 +58,14 @@ inventory_test <- window(inventory_manhattan, start=c(2020,2), end=c(2022,12))
 lambda_rent <- BoxCox.lambda(rent_train)
 lambda_inventory <- BoxCox.lambda(inventory_train)
 tsdisplay(BoxCox(rent_train,lambda='auto'))
-tsdisplay(BoxCox(inventory_train,lambda='auto'))
+tsdisplay(BoxCox(inventory_train,lambda=0))
 
 # Correlation
 cor(rent_train, inventory_train)
-cor(BoxCox(rent_train,lambda='auto'), BoxCox(inventory_train,lambda='auto'))
+cor(BoxCox(rent_train,lambda='auto'), BoxCox(inventory_train,lambda=0))
 # Cross Correlations
 ccf(inventory_train, rent_train, lag.max = 12)
-ccf(BoxCox(inventory_train,lambda='auto'), BoxCox(rent_train,lambda='auto'), lag.max = 12)
+ccf(BoxCox(inventory_train,lambda='auto'), BoxCox(rent_train,lambda=0), lag.max = 12)
 ```
 
 
@@ -102,21 +102,21 @@ data <- as.data.frame(cbind(rent_train, inventory_train))
 # a single nonseasonal difference is sufficient to make the inventory_train stationary:
 kpss.test(diff(BoxCox(data$inventory_train,lambda='auto'),differences=1,lag=1),null='Level')
 # this also works following 1 nonseasonal difference, though not as well (note: this is also what auto.arima finds):
-kpss.test(diff(diff(BoxCox(data$inventory_train,lambda='auto'),differences=1,lag=12),differences=1,lag=1),null='Level')
+kpss.test(diff(BoxCox(data$inventory_train,lambda=0),differences=1,lag=1),null='Level')
 ```
 
 
 ```{r (Examine Seasonally Differenced Plots)}
-tsdisplay(diff(BoxCox(rent_train, lambda = 'auto'), lag=12)) # AR(1)
-tsdisplay(diff(BoxCox(inventory_train, lambda = 'auto'), diff=3, lag=12))  # AR(1)?
+tsdisplay(diff(BoxCox(rent_train, lambda = 'auto'), lag=1, differences = 1)) # AR(1)
+tsdisplay(diff(BoxCox(inventory_train, lambda = 0), diff=1, lag=11))  # AR(1)?
 
-# added:
-tsdisplay(diff(diff(BoxCox(inventory_train, lambda = 'auto'), differences=1, lag=12),differences=1,lag=1))
 ```
 
 ### Attempt to do a SVARIMA, but at the moment the p,q,P selections are mostly just off vibes
 ```{r (Seasonal ARIMA (SVARIMA))}
-svarma_model <- sVARMA(data, order=c(1,0,1), sorder=c(1,1,0), s=12)
+data <- as.data.frame(cbind(rent_train, inventory_train))
+
+svarma_model <- sVARMA(data, order=c(1,1,1), sorder=c(1,1,0), s=12)
 preds <- sVARMApred(svarma_model, 0, h=length(rent_test))
 plot(preds$pred[,1])
 plot(preds$pred[,2])

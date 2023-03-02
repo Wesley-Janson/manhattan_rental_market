@@ -16,6 +16,7 @@ library(tseries)
 library(forecast)
 library(TSA)
 library(vars)
+library(lubridate)
 ```
 
 ### load data
@@ -100,66 +101,73 @@ fit %>%
            xreg=inventory_preds) %>% 
   autoplot()
 ```
+
 ### Cross Validation
 ```{r}
+# predict inventory
 inventory_arima <- auto.arima(inventory_train, 
                               lambda = 'auto')
 inventory_preds <- forecast(inventory_arima, h=24)$mean
+```
 
-### DEFINE MODELS HERE:
+```{r}
 
-reg_arma_model = function(rent_train){
-  return(auto.arima(rent_train,
-                    lambda = 'auto',
-                     xreg = inventory_train))}
+exp_error = 0
+sl_error = 0
+for (i in 1:floor(length(inventory_train) * 0.25)){
+  n_sliding <- ceiling(length(inventory_train) * 0.75)
+  
+  expand_window_inv <- ts(inventory_train[1:n_sliding + i],frequency=12)
+  sliding_window_inv <-  ts(inventory_train[i:n_sliding],frequency=12)
+  
+  expand_window_rent <- ts(rent_train[1:n_sliding + i],frequency=12)
+  sliding_window_rent <-  ts(rent_train[i:n_sliding],frequency=12)
+  
+  test_rent <- ts(rent_train[n_sliding + i: n_sliding + 12],frequency=12)
+  test_inv <- ts(inventory_train[n_sliding + i: n_sliding + 12],frequency=12)
+}
 
-
-rent_ets_model = function(training_data){
-  return(ets(training_data,model="MAN"))}
-
-fit <- reg_arma_model()
-
-
-
-# predict inventory
-
-
-# fit model and predict
+# fit model 
 fit <- auto.arima(rent_train,
                   lambda = 'auto',
                   xreg = inventory_train)
 
-fit %>% summary()
-fit %>% checkresiduals()
-fit %>% 
-  forecast(h=24,
-           xreg=inventory_preds) %>% 
-  autoplot()
+## Create forecast
+arma_err_forecast_exp <- forecast(fit,
+                                  h=length(test_rent), 
+                                  xreg=inventory_preds)
+
+arma_err_forecast_sl <- forecast(fit, h=length(test_rent))$forecast
 ```
-
-```{r}
-source(paste0(base_path, '/cross_validation.R'))
-
-output_model <- cross.validate(reg_arma_model,rent_train,80,12)
-output_ets <- cross.validate(fit,rent_train,80,12)
-generate.plots(output_model,output_ets)
-```
-
-```{r}
-# drews code
-
-# rent
-output_model <- cross.validate(rent_SARIMA_model,rent_train,80,12)
-output_ets <- cross.validate(rent_ets_model,rent_train,80,12)
-generate.plots(output_arima,output_ets)
-```
-
-
 
 ### Attempt at intervention
 
 ```{r}
+# Calculate the number of observations before the intervention date
+num_obs_before <- 122
+# Calculate the number of observations after the intervention date
+num_obs_after <- 34
+# Create a vector of 0s and 1s to represent the intervention variable
+intervention_vec <- rep(c(0, 1), c(num_obs_before, num_obs_after))
 
+# Convert the vector to a time series object with the same start and frequency as the AirPassengers data
+intervention_ts <- ts(intervention_vec, start = c(2010, 1), frequency = 12)
+#xreg_with_intervention <- cbind(inventory_train, intervention_ts)
+
+# fit model and predict
+# fit <- auto.arima(median_rent_manhattan,
+#                   lambda = 'auto',
+#                   xreg = intervention_ts)
+
+#ARIMA(0,1,0)(2,0,0)[12] errors 
+fit <- arimax(median_rent_manhattan, 
+              order = c(0,1,0),
+              seasonal = list(order=c(0,1,1)),
+              xreg = intervention_ts)
+
+fit %>% summary()
+fit %>% checkresiduals()
+fit$
 ```
 
 

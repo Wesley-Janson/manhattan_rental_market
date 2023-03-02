@@ -23,6 +23,7 @@ library(dplyr)
 base_path <- system('git rev-parse --show-toplevel', intern = T)
 
 # rental index - one for each of four real boroughs
+# note: we won't use the rental index as it is already smoothed via ARIMA
 rental_index_raw <- read.csv(paste0(base_path, '/data/rentalIndex_All.csv'))
 # median asking rent - four real boroughs + 155 neighborhoods
 median_rent_raw <- read.csv(paste0(base_path, '/data/medianAskingRent_All.csv'))
@@ -87,39 +88,72 @@ lines(((inventory_stationary-mean(inventory_stationary)))/var(inventory_stationa
 ### SARIMA
 
 ```{r}
-# we won't use the rental index as it appears to be smoothed
 # median rent SARIMA
-rent_sarima <- auto.arima(rent_train,lambda='auto',trace=TRUE)
+rent_lambda = BoxCox.lambda(rent_train)
+rent_sarima <- auto.arima(rent_train,lambda=rent_lambda,trace=TRUE)
 checkresiduals(rent_sarima)
+summary(rent_sarima)
 ```
+Best rent SARIMA: nonseasonal first difference, seasonal AR(2), no drift. This is a parsimonous model with white noise residuals. Adding drift, nonseasonal AR(1) and seasonal MA(1) only slightly increase AICc. RMSE 31.8, MAE 24,08806, MAPE 0.7533599.
 
 
 ```{r}
-boxcox_inventory_sarima <- auto.arima(inventory_train,max.d=1,lambda='auto')
-checkresiduals(boxcox_inventory_sarima)
-inventory_sarima <- auto.arima(inventory_train,lambda=NULL,trace=TRUE)
+inventory_lambda = 0  # Note: As determined in Wesley's code, we will just use a log transform for the inventory series.
+inventory_sarima <- auto.arima(inventory_train,lambda=inventory_lambda,trace=TRUE)
 checkresiduals(inventory_sarima)
+summary(inventory_sarima)
 ```
+
+Best inventory SARIMA: nonseasonal first difference, seasonal first-differenced MA(1). Residuals are mostly white noise - possibly some quarterly / two-year autocorrelations, but might also just be multiple testing (Ljung-Box doesn't reject). Similarly to above, there are a number of models with very close AICc, though none with drift. RMSE 673.5361, MAE 481.7169, MAPE 2.686797.
 
 
 ### ETS
 
 ```{r}
-# don't force lambda, because that forces additive model
 
-rent_ets <- ets(median_rent_manhattan)
+rent_ets <- ets(rent_train, lambda = rent_lambda)  # note that we get AAA without lambda
 summary(rent_ets)
 checkresiduals(rent_ets)
 
-inventory_ets <- ets(inventory_manhattan)
+inventory_ets <- ets(inventory_train)  # don't force lambda, because that forces additive model
 summary(inventory_ets)
 checkresiduals(inventory_ets)
 ```
+Rent ETS: AAA (additive error, trend, seasonality).
+    alpha = 0.9996 
+    beta  = 2e-04 
+    gamma = 3e-04 
+    phi   = 0.9744 
+Dominated by error, with very little trend or seasonality. Only slightly damped. Residuals mostly look like white noise, maybe 1.5 year seasonality, but Ljung-Box rejects at high significance level. Training RMSE 29.52856, MAE 22.48471, MAPE 0.7053597.
+
+Inventory ETS: MAM (multiplicative error, additive trend, multiplicative seasonality).
+    alpha = 0.9884 
+    beta  = 0.0875 
+    gamma = 1e-04 
+    phi   = 0.98
+Dominated by error, with some trend contribution and very little seasonality. Only slightly damped. Residuals mostly look like white noise but Ljung-Box rejects at high significance level. RMSE 621.3574, MAE 469.1133, MAPE 2.705515.
 
 
 ### Cross-validation
 
 ```{r}
+### DEFINE MODELS HERE:
+
+rent_SARIMA_model = function(training_data){
+  return(Arima(
+    training_data,order=c(0,1,0),seasonal=c(2,0,0),
+    include.drift=FALSE,lambda=rent_lambda,method='CSS-ML'))}
+
+inventory_SARIMA_model = function(training_data){
+  return(Arima(
+    training_data,order=c(0,1,0),seasonal=c(0,1,1),method='CSS-ML'))}
+
+rent_ets_model = function(training_data){
+  return(ets(training_data,model="MAN"))}
+
+inventory_ets_model = function(training_data){
+  return(ets(training_data,model="MAA"))}
+
 ### cross-validation helper functions
 
 add_NAs_to_list <- function(lst) {
@@ -129,21 +163,6 @@ add_NAs_to_list <- function(lst) {
   }
   return(c(lst, rep(NA, 12 - n)))
 }
-
-rent_SARIMA_model = function(training_data){
-  return(Arima(
-    training_data,order=c(2,1,1),seasonal=c(2,0,1),
-    include.drift=TRUE,lambda="auto",method='CSS-ML'))}
-
-inventory_SARIMA_model = function(training_data){
-  return(Arima(
-    training_data,order=c(1,1,0),seasonal=c(2,0,0),method='CSS-ML'))}
-
-rent_ets_model = function(training_data){
-  return(ets(training_data,model="MAN"))}
-
-inventory_ets_model = function(training_data){
-  return(ets(training_data,model="MAA"))}
 
 predict_and_forecast = function(model,series,i,last_training_point,n_forecast,window_type){
   if (window_type=="expanding"){
@@ -187,11 +206,83 @@ cross.validate = function(model,series,n_window,n_forecast){
   
   return(list(model_aicc_expanding,error_expanding,model_aicc_sliding,error_sliding))
 }
+
+# plotting
+generate.plots = function(output_arima, output_ets){
+  arima_expanding_errors <- data.frame(matrix(unlist(output_arima[[2]]), ncol = 12, byrow = TRUE))
+  arima_sliding_errors <- data.frame(matrix(unlist(output_arima[[4]]), ncol = 12, byrow = TRUE))
+  ets_expanding_errors <- data.frame(matrix(unlist(output_ets[[2]]), ncol = 12, byrow = TRUE))
+  ets_sliding_errors <- data.frame(matrix(unlist(output_ets[[4]]), ncol = 12, byrow = TRUE))
+
+  # Mean Absolute Forecast Error (MAE) vs forecast horizon
+  plot(1:12,colMeans(abs(arima_expanding_errors),na.rm=TRUE),'l',
+     main='expanding arima MAE',xlab='horizon',ylab='MAE')
+  plot(1:12,colMeans(abs(arima_sliding_errors),na.rm=TRUE),'l',
+     main='sliding arima MAE',,xlab='horizon',ylab='MAE')
+
+# Root-square Forecast Error (RMSE) vs forecast horizon
+  plot(1:12,sqrt(colMeans((arima_expanding_errors)**2,na.rm=TRUE)),'l',
+     main='expanding arima RSME',xlab='horizon',ylab='RMSE')
+  plot(1:12,sqrt(colMeans((arima_sliding_errors)**2,na.rm=TRUE)),'l',
+     main='sliding arima RSME',,xlab='horizon',ylab='RMSE')
+
+  # Mean Absolute Forecast Error (MAE) vs iteration
+  plot(1:41,rowMeans(abs(arima_expanding_errors),na.rm=TRUE),'l',
+     main='expanding arima MAE',xlab='iteration',ylab='MAE')
+  plot(1:41,rowMeans(abs(arima_sliding_errors),na.rm=TRUE),'l',
+     main='sliding arima MAE',xlab='iteration',ylab='MAE')
+
+  # Root-square Forecast Error (RMSE) vs iteration
+  plot(1:41,sqrt(rowMeans((arima_expanding_errors)**2,na.rm=TRUE)),'l',
+     main='expanding arima RSME',xlab='iteration',ylab='RMSE')
+  plot(1:41,sqrt(rowMeans((arima_sliding_errors)**2,na.rm=TRUE)),'l',
+     main='sliding arima RSME',xlab='iteration',ylab='RMSE')
+
+  # AICc vs iteration
+  plot(1:41,output_arima[[1]],'l',main='expanding arima aicc',xlab='iteration',ylab='AICc')
+  plot(1:41,output_arima[[3]],'l',main='sliding arima aicc',,xlab='iteration',ylab='AICc')
+
+  # Mean Absolute Forecast Error (MAE) vs forecast horizon
+  plot(1:12,colMeans(abs(ets_expanding_errors),na.rm=TRUE),'l',
+     main='expanding ets MAE',,xlab='horizon',ylab='MAE')
+  plot(1:12,colMeans(abs(ets_sliding_errors),na.rm=TRUE),'l',
+     main='sliding ets MAE',xlab='horizon',ylab='MAE')
+
+  # Root-square Forecast Error (RMSE) vs forecast horizon
+  plot(1:12,sqrt(colMeans((ets_expanding_errors)**2,na.rm=TRUE)),'l',
+     main='expanding ets RMSE',xlab='horizon',ylab='RMSE')
+  plot(1:12,sqrt(colMeans((ets_sliding_errors)**2,na.rm=TRUE)),'l',
+     main='sliding ets RMSE',xlab='horizon',ylab='RMSE')
+
+  # Mean Absolute Forecast Error (MAE) vs iteration
+  plot(1:41,rowMeans(abs(ets_expanding_errors),na.rm=TRUE),'l',
+     main='expanding ets MAE',xlab='iteration',ylab='MAE')
+  plot(1:41,rowMeans(abs(ets_sliding_errors),na.rm=TRUE),'l',
+     main='sliding ets MAE',xlab='iteration',ylab='MAE')
+
+  # Root-square Forecast Error (RMSE) vs iteration
+  plot(1:41,sqrt(rowMeans((ets_expanding_errors)**2,na.rm=TRUE)),'l',
+     main='expanding ets RMSE',xlab='iteration',ylab='RMSE')
+  plot(1:41,sqrt(rowMeans((ets_sliding_errors)**2,na.rm=TRUE)),'l',
+     main='sliding ets RMSE',xlab='iteation',ylab='RMSE')
+
+  # AICc vs iteration
+  plot(1:41,output_ets[[1]],'l',main='expanding ets aicc',xlab='iteration',ylab='AICc')
+  plot(1:41,output_ets[[3]],'l',main='sliding ets aicc',xlab='iteration',ylab='AICc')
+}
 ```
 
 ```{r}
-# predict
-output_rent_arima <- cross.validate(rent_SARIMA_model,rent_train,80,12)
-output_rent_ets <- cross.validate(rent_ets_model,rent_train,80,12)
+# rent
+output_arima <- cross.validate(rent_SARIMA_model,rent_train,80,12)
+output_ets <- cross.validate(rent_ets_model,rent_train,80,12)
+generate.plots(output_arima,output_ets)
+```
+
+```{r}
+# inventory
+output_arima <- cross.validate(inventory_SARIMA_model,inventory_train,80,12)
+output_ets <- cross.validate(inventory_ets_model,inventory_train,80,12)
+generate.plots(output_arima,output_ets)
 ```
 

@@ -18,7 +18,7 @@ library(TSA)
 library(vars)
 ```
 
-### Load and inspect data
+### load data
 
 ```{r}
 # set up generalizable path without local path hard coded
@@ -33,12 +33,12 @@ inventory_raw <- read.csv(paste0(base_path, '/data/rentalInventory_All.csv'))
 
 ```
 
+### clean and set train / test
 ```{r}
-rental_index_manhattan <- ts(rental_index_raw$Manhattan,
-                             start=c(2007,1),
-                             frequency=12)
+# rental_index_manhattan <- ts(rental_index_raw$Manhattan,
+#                              start=c(2007,1),
+#                              frequency=12)
 
-tsdisplay(rental_index_manhattan)
 
 median_rent_manhattan <- median_rent_raw %>% 
   filter(areaName=="Manhattan") %>%
@@ -46,7 +46,6 @@ median_rent_manhattan <- median_rent_raw %>%
   na.omit() %>% 
   ts(start=c(2010,1),frequency=12)
 
-tsdisplay(median_rent_manhattan)
 
 inventory_manhattan <- inventory_raw %>% 
   filter(areaName=="Manhattan") %>% 
@@ -54,7 +53,6 @@ inventory_manhattan <- inventory_raw %>%
   na.omit() %>%
   ts(start=c(2010,1),frequency=12)
 
-tsdisplay(inventory_manhattan)
 
 rent_train <- window(median_rent_manhattan, start=2010, end=c(2020,1))
 inventory_train <- window(inventory_manhattan, start=2010, end=c(2020,1))
@@ -62,6 +60,7 @@ rent_test <- window(median_rent_manhattan, start=c(2020,2), end=c(2022,12))
 inventory_test <- window(inventory_manhattan, start=c(2020,2), end=c(2022,12))
 ```
 
+### Trying visualizations and transformations
 ```{r}
 inventory_train %>% autoplot()
 
@@ -69,8 +68,7 @@ inventory_train %>% autoplot()
 log(rent_train) %>%
   cbind(log(inventory_train)) %>%
   autoplot()
-```
-```{r}
+
 #trying transformations
 BoxCox(rent_train,lambda='auto') %>% autoplot()
 BoxCox(inventory_train,lambda='auto') %>% autoplot()
@@ -83,20 +81,11 @@ BoxCox(inventory_train,lambda='auto') %>%
   tsdisplay()
 ```
 
+### Regression ARMA errors
 ```{r}
-#regular linear model
-tslm(rent_train ~ inventory_train) %>% summary()
-
-tslm(rent_train ~ inventory_train) %>% checkresiduals()
-```
-
-```{r}
-# BoxCox(rent_train,lambda='auto')
-
 # predict inventory
 inventory_arima <- auto.arima(inventory_train, 
                               lambda = 'auto')
-
 inventory_preds <- forecast(inventory_arima, h=24)$mean
 
 # fit model and predict
@@ -106,25 +95,71 @@ fit <- auto.arima(rent_train,
 
 fit %>% summary()
 fit %>% checkresiduals()
-fit %>% forecast(h=24,
-                 xreg=inventory_preds) %>% 
+fit %>% 
+  forecast(h=24,
+           xreg=inventory_preds) %>% 
+  autoplot()
+```
+### Cross Validation
+```{r}
+inventory_arima <- auto.arima(inventory_train, 
+                              lambda = 'auto')
+inventory_preds <- forecast(inventory_arima, h=24)$mean
+
+### DEFINE MODELS HERE:
+
+reg_arma_model = function(rent_train){
+  return(auto.arima(rent_train,
+                    lambda = 'auto',
+                     xreg = inventory_train))}
+
+
+rent_ets_model = function(training_data){
+  return(ets(training_data,model="MAN"))}
+
+fit <- reg_arma_model()
+
+
+
+# predict inventory
+
+
+# fit model and predict
+fit <- auto.arima(rent_train,
+                  lambda = 'auto',
+                  xreg = inventory_train)
+
+fit %>% summary()
+fit %>% checkresiduals()
+fit %>% 
+  forecast(h=24,
+           xreg=inventory_preds) %>% 
   autoplot()
 ```
 
-
 ```{r}
-fit %>% forecast(h=12)
+source(paste0(base_path, '/cross_validation.R'))
+
+output_model <- cross.validate(reg_arma_model,rent_train,80,12)
+output_ets <- cross.validate(fit,rent_train,80,12)
+generate.plots(output_model,output_ets)
 ```
 
 ```{r}
-cbind("Regression Errors" = residuals(fit, type="regression"),
-      "ARIMA errors" = residuals(fit, type="innovation")) %>%
-  autoplot(facets=TRUE)
+# drews code
+
+# rent
+output_model <- cross.validate(rent_SARIMA_model,rent_train,80,12)
+output_ets <- cross.validate(rent_ets_model,rent_train,80,12)
+generate.plots(output_arima,output_ets)
 ```
 
 
+
+### Attempt at intervention
 
 ```{r}
 
 ```
+
 

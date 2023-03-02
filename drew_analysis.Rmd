@@ -162,8 +162,9 @@ rent_covid <- ts(median_rent_manhattan[(length(rent_train)+1):length(median_rent
 plot(forecast(rent_sarima,length(rent_covid)))
 lines(rent_covid)
 rent_effect <- rent_covid-forecast(rent_sarima,length(rent_covid))$mean
-plot(rent_effect)
+plot(rent_effect,main='Estimated COVID Effect on Rent (via ARIMA)')
 mean(rent_effect)
+abline(h=0)
 ```
 
 ```{r}
@@ -172,8 +173,9 @@ inventory_covid <- ts(inventory_manhattan[(length(rent_train)+1):length(inventor
 plot(forecast(inventory_sarima,length(inventory_covid)))
 lines(inventory_covid)
 inventory_effect <- inventory_covid-forecast(inventory_sarima,length(inventory_covid))$mean
-plot(inventory_effect)
+plot(inventory_effect,main='Estimated COVID Effect on Inventory (via ARIMA)')
 mean(inventory_effect)
+abline(h=0)
 ```
 
 ```{r}
@@ -181,8 +183,9 @@ mean(inventory_effect)
 plot(forecast(rent_ets,length(rent_covid)))
 lines(rent_covid)
 rent_effect_ets <- rent_covid-forecast(rent_ets,length(rent_covid))$mean
-plot(rent_effect_ets)
+plot(rent_effect_ets,main='Estimated COVID Effect on Rent (via ETS)')
 mean(rent_effect_ets)
+abline(h=0)
 ```
 
 
@@ -191,11 +194,21 @@ mean(rent_effect_ets)
 plot(forecast(inventory_ets,length(inventory_covid)))
 lines(inventory_covid)
 inventory_effect_ets <- inventory_covid-forecast(inventory_ets,length(inventory_covid))$mean
-plot(inventory_effect_ets)
+plot(inventory_effect_ets,main='Estimated COVID Effect on Inventory (via ETS)')
 mean(inventory_effect_ets)
+abline(h=0)
 ```
 
 
+```{r}
+intervention_vec <- rep(c(0,1), c(122, 34))
+# allow free estimation
+summary(auto.arima(median_rent_manhattan,xreg=intervention_vec,lambda=rent_lambda))
+summary(auto.arima(inventory_manhattan,xreg=intervention_vec,lambda=inventory_lambda))
+# specify models as above
+summary(Arima(median_rent_manhattan,c(0,1,0),c(2,0,0),xreg=intervention_vec,lambda=rent_lambda))
+summary(Arima(inventory_manhattan,order=c(0,1,0),seasonal=c(0,1,1),xreg=intervention_vec,lambda=inventory_lambda))
+```
 
 
 

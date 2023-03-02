@@ -111,7 +111,6 @@ inventory_preds <- forecast(inventory_arima, h=24)$mean
 ```
 
 ```{r}
-
 exp_error = 0
 sl_error = 0
 for (i in 1:floor(length(inventory_train) * 0.25)){
@@ -125,19 +124,34 @@ for (i in 1:floor(length(inventory_train) * 0.25)){
   
   test_rent <- ts(rent_train[n_sliding + i: n_sliding + 12],frequency=12)
   test_inv <- ts(inventory_train[n_sliding + i: n_sliding + 12],frequency=12)
-}
 
-# fit model 
-fit <- auto.arima(rent_train,
-                  lambda = 'auto',
-                  xreg = inventory_train)
-
-## Create forecast
+   ## Create forecast
 arma_err_forecast_exp <- forecast(fit,
                                   h=length(test_rent), 
                                   xreg=inventory_preds)
 
-arma_err_forecast_sl <- forecast(fit, h=length(test_rent))$forecast
+arma_err_forecast_sl <- forecast(fit,
+                                 h=length(test_rent),
+                                 xreg=inventory_preds)
+  pred_exp_rent <- 
+  pred_sl_rent <-
+  
+  exp_error <- exp_error + (mean(preds - pred_exp_rent)^2 / floor(length(inventory_train) * 0.25))
+  sl_error <- sl_error + (mean(preds - pred_sl_rent)^2 / floor(length(inventory_train) * 0.25))
+  
+  }
+
+# # fit model 
+# fit <- auto.arima(rent_train,
+#                   lambda = 'auto',
+#                   xreg = inventory_train)
+# 
+# ## Create forecast
+# arma_err_forecast_exp <- forecast(fit,
+#                                   h=length(test_rent), 
+#                                   xreg=inventory_preds)
+# 
+# arma_err_forecast_sl <- forecast(fit, h=length(test_rent))$forecast
 ```
 
 ### Attempt at intervention
@@ -151,23 +165,24 @@ num_obs_after <- 34
 intervention_vec <- rep(c(0, 1), c(num_obs_before, num_obs_after))
 
 # Convert the vector to a time series object with the same start and frequency as the AirPassengers data
-intervention_ts <- ts(intervention_vec, start = c(2010, 1), frequency = 12)
-#xreg_with_intervention <- cbind(inventory_train, intervention_ts)
+#intervention_ts <- ts(intervention_vec, start = c(2010, 1), frequency = 12)
+xreg_with_intervention <- cbind(inventory_train, intervention_ts)
 
-# fit model and predict
-# fit <- auto.arima(median_rent_manhattan,
-#                   lambda = 'auto',
-#                   xreg = intervention_ts)
+#fit model and predict
+fit <- auto.arima(median_rent_manhattan,
+                  lambda = 'auto',
+                  xreg = xreg_with_intervention)
 
 #ARIMA(0,1,0)(2,0,0)[12] errors 
-fit <- arimax(median_rent_manhattan, 
-              order = c(0,1,0),
-              seasonal = list(order=c(0,1,1)),
-              xreg = intervention_ts)
+# fit <- arimax(median_rent_manhattan, 
+#               order = c(0,1,0),
+#               seasonal = list(order=c(0,1,1)),
+#               xreg = intervention_ts)
 
 fit %>% summary()
 fit %>% checkresiduals()
-fit$
+
+auto.arima(median_rent_manhattan) %>% checkresiduals()
 ```
 
 

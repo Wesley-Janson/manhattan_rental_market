@@ -236,11 +236,11 @@ for (i in 1:floor(length(inventory_train) * 0.25)){
   rmse_sl <- append(rmse_sl, rmse(df[,1], df[,2]))
   rmse_exp <- append(rmse_exp, rmse(df[,1], df[,2]))
   }
-       
 ```
 
-
-
+```{r}
+x <- 1:floor(length(inventory_train) * 0.25)
+```
 
 
 

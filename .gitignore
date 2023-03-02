@@ -1,3 +1,4 @@
 .Rhistory
 *.nb.html
+*.knit.md
 .RData

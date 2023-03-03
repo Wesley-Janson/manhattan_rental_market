@@ -65,6 +65,31 @@ tsdisplay(BoxCox(rent_train,lambda='auto'))
 tsdisplay(BoxCox(inventory_train,lambda='auto'))
 ```
 
+
+```{r (Plot Data)}
+
+# Median Rent
+autoplot(median_rent_manhattan, main = "Median Rent - Manhattan", ylab="Median Rent ($)", xlab="Year") + 
+  theme_classic() +
+  theme(legend.position="none") +
+  scale_y_continuous(breaks=c(seq(3000,4200,400))) + 
+  geom_hline(yintercept=seq(2800,4200, by=200), size=0.1, linetype=2)
+
+ggsave("rent_raw_series.png", width=128, height=96, units="mm")
+
+# Inventory
+autoplot(inventory_manhattan, main = "Inventory - Manhattan", ylab="Inventory", xlab="Year") + 
+  theme_classic() +
+  theme(legend.position="none") +
+  scale_y_continuous(breaks=c(seq(10000,40000,10000))) + 
+  geom_hline(yintercept=seq(10000,40000, by=10000), size=0.1, linetype=2)
+
+ggsave("inventory_raw_series.png", width=128, height=96, units="mm")
+
+```
+
+
+
 ```{r}
 #save(inventory_manhattan,file='data/inventory_manhattan.RData')
 #save(median_rent_manhattan,file='data/median_rent_manhattan.RData')
@@ -164,11 +189,22 @@ lines(rent_covid)
 rent_effect <- rent_covid-forecast(rent_sarima,length(rent_covid))$mean
 upper_conf <- forecast(rent_sarima,length(rent_covid))$upper[,2]-forecast(rent_sarima,length(rent_covid))$mean
 lower_conf <- forecast(rent_sarima,length(rent_covid))$lower[,2]-forecast(rent_sarima,length(rent_covid))$mean
-plot(rent_effect,main='Estimated COVID Effect on Rent (via ARIMA)')
-lines(upper_conf,col='blue')
-lines(lower_conf,col='blue')
-abline(h=0)
-mean(rent_effect)
+# plot(rent_effect,main='Estimated COVID Effect on Rent (via ARIMA)')
+# lines(upper_conf,col='blue')
+# lines(lower_conf,col='blue')
+# abline(h=0)
+# mean(rent_effect)
+
+
+autoplot(rent_effect, main = "Estimated COVID Effect on Rent (via ARIMA)", ylab="Rent Effect", xlab="Year") + 
+  geom_hline(yintercept=0, size=0.5, linetype=1) +
+  theme_classic() +
+  theme(legend.position="none") +
+  scale_y_continuous(breaks=c(seq(-1000,600,200))) + 
+  geom_hline(yintercept=seq(-1000, 600, by=200), size=0.1, linetype=2)
+
+ggsave("rent_covid_effect.png", width=128, height=96, units="mm")
+  
 ```
 
 ```{r}
@@ -178,10 +214,19 @@ plot(forecast(inventory_sarima,length(inventory_covid)))
 lines(inventory_covid)
 inventory_effect <- inventory_covid-forecast(inventory_sarima,length(inventory_covid))$mean
 upper_conf <- forecast(inventory_sarima,length(inventory_covid))$upper[,2]-forecast(inventory_sarima,length(inventory_covid))$mean
-plot(inventory_effect,main='Estimated COVID Effect on Inventory (via ARIMA)')
-lines(upper_conf,col='blue')
-abline(h=0)
-mean(inventory_effect)
+# plot(inventory_effect,main='Estimated COVID Effect on Inventory (via ARIMA)')
+# lines(upper_conf,col='blue')
+# abline(h=0)
+# mean(inventory_effect)
+
+autoplot(inventory_effect, main = "Estimated COVID Effect on Inventory (via ARIMA)", ylab="Inventory Effect", xlab="Year") + 
+  geom_hline(yintercept=0, size=0.5, linetype=1) +
+  theme_classic() +
+  theme(legend.position="none") +
+  scale_y_continuous(breaks=c(seq(-6000,26000,6000))) + 
+  geom_hline(yintercept=seq(-6000, 26000, by=6000), size=0.1, linetype=2)
+
+ggsave("inventory_covid_effect.png", width=128, height=96, units="mm")
 ```
 
 ```{r}

@@ -277,6 +277,11 @@ ggplot(df, aes(x=x)) +
 ggsave("CV-error.png", width=128, height=96, units="mm")
 ```
 
+```{r}
+rent_var_expanding_rmse <- df$Expanding
+#save(rent_var_expanding_rmse,file='data/rent_var_expanding_rmse.RData')
+```
+
 
 
 

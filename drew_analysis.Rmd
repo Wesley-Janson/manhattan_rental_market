@@ -173,11 +173,33 @@ generate.plots(output_arima,output_ets)
 ```
 
 ```{r}
+# save
+arima_expanding_errors <- data.frame(matrix(unlist(output_arima[[2]]), ncol = 12, byrow = TRUE))
+ets_expanding_errors <- data.frame(matrix(unlist(output_ets[[2]]), ncol = 12, byrow = TRUE))
+rent_arima_expanding_rmse <- sqrt(rowMeans((arima_expanding_errors)**2,na.rm=TRUE))
+rent_ets_expanding_rmse <- sqrt(rowMeans((ets_expanding_errors)**2,na.rm=TRUE))
+#save(rent_arima_expanding_rmse,file='data/rent_arima_expanding_rmse.RData')
+#save(rent_ets_expanding_rmse,file='data/rent_ets_expanding_rmse.RData')
+```
+
+
+```{r}
 # inventory
 output_arima <- cross.validate(inventory_SARIMA_model,inventory_train,80,12)
 output_ets <- cross.validate(inventory_ets_model,inventory_train,80,12)
 generate.plots(output_arima,output_ets)
 ```
+
+```{r}
+# save
+arima_expanding_errors <- data.frame(matrix(unlist(output_arima[[2]]), ncol = 12, byrow = TRUE))
+ets_expanding_errors <- data.frame(matrix(unlist(output_ets[[2]]), ncol = 12, byrow = TRUE))
+inventory_arima_expanding_rmse <- sqrt(rowMeans((arima_expanding_errors)**2,na.rm=TRUE))
+inventory_ets_expanding_rmse <- sqrt(rowMeans((ets_expanding_errors)**2,na.rm=TRUE))
+save(inventory_arima_expanding_rmse,file='data/inventory_arima_expanding_rmse.RData')
+save(inventory_ets_expanding_rmse,file='data/inventory_ets_expanding_rmse.RData')
+```
+
 
 ### Intervention analysis
 

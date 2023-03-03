@@ -212,9 +212,9 @@ ggsave("inventory_counterfactual.png", width=128, height=96, units="mm")
 rmse_exp <- c()
 rmse_sl <- c()
 
-for (i in 1:floor(length(inventory_train) * 0.25)){
+for (i in 1:41){
 
-  n_sliding <- ceiling(length(inventory_train) * 0.75)
+  n_sliding <- 79
   
   expand_window_inv <- ts(inventory_train[1:(n_sliding + i)],frequency=12)
   sliding_window_inv <-  ts(inventory_train[i:n_sliding],frequency=12)
@@ -260,7 +260,7 @@ for (i in 1:floor(length(inventory_train) * 0.25)){
 ```
 
 ```{r}
-x <- 1:floor(length(inventory_train) * 0.25)
+x <- 1:41
 
 df <- data.frame('Iteration'=x, 'Sliding' = rmse_sl, 'Expanding' = rmse_exp)
 
@@ -274,8 +274,12 @@ ggplot(df, aes(x=x)) +
   guides(color = guide_legend(title = "")) + 
   geom_hline(yintercept=seq(0,350, by=100), size=0.1, linetype=2)
 
-
 ggsave("CV-error.png", width=128, height=96, units="mm")
+```
+
+```{r}
+rent_var_expanding_rmse <- df$Expanding
+#save(rent_var_expanding_rmse,file='data/rent_var_expanding_rmse.RData')
 ```
 
 

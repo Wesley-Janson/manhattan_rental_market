@@ -223,7 +223,8 @@ autoplot(rent_effect, main = "Estimated COVID Effect on Rent (via ARIMA)", ylab=
   theme_classic() +
   theme(legend.position="none") +
   scale_y_continuous(breaks=c(seq(-1000,600,200))) + 
-  geom_hline(yintercept=seq(-1000, 600, by=200), size=0.1, linetype=2)
+  geom_hline(yintercept=seq(-1000, 600, by=200), size=0.1, linetype=2) +
+  labs(caption = "Effect in relation to pre-COVID model predictions.")
 
 ggsave("rent_covid_effect.png", width=128, height=96, units="mm")
   
@@ -246,7 +247,8 @@ autoplot(inventory_effect, main = "Estimated COVID Effect on Inventory (via ARIM
   theme_classic() +
   theme(legend.position="none") +
   scale_y_continuous(breaks=c(seq(-6000,26000,6000))) + 
-  geom_hline(yintercept=seq(-6000, 26000, by=6000), size=0.1, linetype=2)
+  geom_hline(yintercept=seq(-6000, 26000, by=6000), size=0.1, linetype=2) +
+  labs(caption = "Effect in relation to pre-COVID model predictions.")
 
 ggsave("inventory_covid_effect.png", width=128, height=96, units="mm")
 ```

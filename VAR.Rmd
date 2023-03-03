@@ -252,12 +252,29 @@ for (i in 1:floor(length(inventory_train) * 0.25)){
   df <- na.omit(df)
   
   rmse_sl <- append(rmse_sl, rmse(df[,1], df[,2]))
+  
+  df <-  data.frame(pred_sl_rent[-1], test_rent)
+  df <- na.omit(df)
   rmse_exp <- append(rmse_exp, rmse(df[,1], df[,2]))
   }
 ```
 
 ```{r}
 x <- 1:floor(length(inventory_train) * 0.25)
+
+df <- data.frame('Iteration'=x, 'Sliding' = rmse_sl, 'Expanding' = rmse_exp)
+
+ggplot(df, aes(x=x)) + 
+  geom_line(aes(y=Sliding, color="Sliding Window")) + 
+  geom_line(aes(y=Expanding, color="Expanding Window")) + 
+  labs(x="Iteration", y="RMSE", title="VAR Cross Validation Error") +
+  scale_color_manual(values=c("Sliding Window"="black", "Expanding Window"="darkgrey")) + 
+  theme_classic() + 
+  theme(legend.position = "bottom") +
+  guides(color = guide_legend(title = ""))
+
+
+ggsave("CV-error.png", width=128, height=96, units="mm")
 ```
 
 

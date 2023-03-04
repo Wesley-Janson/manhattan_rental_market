@@ -17,6 +17,8 @@ library(forecast)
 library(TSA)
 library(vars)
 library(lubridate)
+library(stargazer)
+library(xtable)
 ```
 
 ### load data
@@ -87,7 +89,7 @@ BoxCox(inventory_train,lambda='auto') %>%
 # predict inventory
 inventory_arima <- auto.arima(inventory_train, 
                               lambda = 'auto')
-inventory_preds <- forecast(inventory_arima, h=24)$mean
+inventory_preds <- forecast(inventory_arima, h=35)$mean
 
 # fit model and predict
 fit <- auto.arima(rent_train,
@@ -100,11 +102,50 @@ fit %>%
   forecast(h=24,
            xreg=inventory_preds) %>% 
   autoplot()
+
+model_forecast <- fit %>% 
+  forecast(h=35,
+           xreg=inventory_preds)
+
 ```
 
 ```{r}
-source(paste0(base_path, '/cross_validation.R'))
+# combine the time series and forecast objects into one data frame
+length_diff <- length(as.numeric(median_rent_manhattan)) - length(as.numeric(model_forecast$mean))
+
+
+c(rep(NA,length_diff),as.numeric(model_forecast$mean))
+model_forecast
+median_rent_manhattan
+
+
+arma_errors_df <- data.frame(
+  date = index(median_rent_manhattan),
+  actual = as.numeric(median_rent_manhattan),
+  forecast = c(rep(NA,length_diff),as.numeric(model_forecast$mean))
+)
+
+
+arma_errors_df %>% 
+  ggplot(aes(x = date)) +
+  geom_line(aes(y = actual), color = "black") +
+  geom_line(aes(y = forecast), color = "red") +
+  theme(legend.position="none") +
+  theme_classic() +
+  labs(caption="Forecasted values of Regression with Arma Errors model in red.",
+       y = 'Median Rent',
+       x='') +
+  scale_y_continuous(breaks=c(seq(3000,4200,400))) +
+  geom_hline(yintercept=seq(2800,4200, by=200), size=0.1, linetype=2) +
+  scale_color_manual(values=c("#CC6666", "#9999CC"))
+
+  # ggsave("/rent_counterfactual_arma_error.png", 
+  #        path = '/Users/michaelwagner/dropbox/Q2/time_series/final/chicago_rental_index',
+  #        width=128,
+  #        height=96, 
+  #        units="mm")
 ```
+
 
 ### Cross Validation
 ```{r Drew Code}
@@ -157,7 +198,7 @@ export <- sqrt(rowMeans((intermediate)**2,na.rm=TRUE)) %>%
   as_tibble() %>% 
   rename(RMSE_arma_errors_inventory = value)
 
-write.csv(export, paste0(base_path, '/data/arma_error_inventory_results_cv.csv'))
+# write.csv(export, paste0(base_path, '/data/arma_error_inventory_results_cv.csv'))
 
 #write.csv(DataFrame Name, "Path to export the DataFrame\\File Name.csv", row.names=FALSE)
 

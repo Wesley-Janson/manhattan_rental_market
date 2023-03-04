@@ -28,7 +28,7 @@ results_df <-
     var = rmse_exp)
 
 # make graph -------
-
+# make draft
 plot_object <- results_df %>% 
   pivot_longer(ets:var, names_to = 'model') %>% 
   ggplot(aes(x = index,
@@ -39,25 +39,33 @@ plot_object <- results_df %>%
   scale_y_continuous(breaks=c(seq(0, 200, 50))) + 
   geom_hline(yintercept=seq(0,200, by=50), size=0.1, linetype=2)
 
+#collect colors for manual re-labeling and renaming
 colors_vec<- ggplot_build(plot_object)$data[[1]] %>% 
   count(colour) %>%
   pull(colour)
 
 
-results_df %>% 
+final_graph <- results_df %>% 
   pivot_longer(ets:var, names_to = 'model') %>% 
   ggplot(aes(x = index,
              y = value,
              color = model)) +
   geom_line(size = 0.6) +
   theme_classic() +
-  labs(color = 'Model') + 
+  labs(color = 'Model',
+       title = 'Root Mean Squared Error',
+       y = '',
+       x = 'Iteration') + 
   scale_y_continuous(breaks=c(seq(0, 200, 50))) + 
   geom_hline(yintercept=seq(0,200, by=50), size=0.1, linetype=2) +
-  scale_color_manual(labels = c("Arima", "Arma Errors", 'Exp Smoothing', 'Var'),
+  scale_color_manual(labels = c("ARIMA", "ARIMA Errors", 'Exp Smoothing', 'VAR'),
                      values = c('#F8766D', '#7CAE00', '#00BFC4', '#C77CFF'))
 
-# arima, arma err, ets, var
-# red, green, blue, purple
+final_graph
+
+ggsave("/final_cv_results_graph.png", 
+       path = '/Users/michaelwagner/dropbox/Q2/time_series/final/chicago_rental_index',
+       width=170, height=110, units="mm")
+
 
       

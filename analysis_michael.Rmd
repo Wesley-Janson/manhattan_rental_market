@@ -136,8 +136,7 @@ arma_errors_df %>%
        y = 'Median Rent',
        x='') +
   scale_y_continuous(breaks=c(seq(3000,4200,400))) +
-  geom_hline(yintercept=seq(2800,4200, by=200), size=0.1, linetype=2) +
-  scale_color_manual(values=c("#CC6666", "#9999CC"))
+  geom_hline(yintercept=seq(2800,4200, by=200), size=0.1, linetype=2)
 
   # ggsave("/rent_counterfactual_arma_error.png", 
   #        path = '/Users/michaelwagner/dropbox/Q2/time_series/final/chicago_rental_index',

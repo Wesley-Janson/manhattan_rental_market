@@ -10,7 +10,6 @@ library(tseries)
 library(forecast)
 library(TSA)
 library(dplyr)
-library(vars)
 library(fpp)
 library(tseries)
 library(rlist)
@@ -21,6 +20,7 @@ library(lubridate)
 library(ggfortify)
 library(Metrics)
 library(ggplot2)
+library(vars)
 ```
 
 ### Helper function
@@ -150,7 +150,7 @@ data_stationary <- cbind(diff(BoxCox(rent_train, lambda = lambda_rent), differen
 
 VARselect(data_stationary, lag.max=12)$selection
 
-inventory_var <- VAR(data_stationary, p=5, type='both', season=12)
+inventory_var <- vars::VAR(data_stationary, p=5, type='both', season=12)
 summary(inventory_var)
 
 ## Create forecast
@@ -172,6 +172,8 @@ Box.test(residuals(inventory_var)[,1], type = c("Ljung-Box"))
 
 checkresiduals(residuals(inventory_var)[,2], test=FALSE)
 Box.test(residuals(inventory_var)[,2], type = c("Ljung-Box"))
+
+ccf(residuals(inventory_var)[,1], residuals(inventory_var)[,2], main="Cross Correlation ACF of Median Rent & Inventory")
 ```
 
 ### More plots

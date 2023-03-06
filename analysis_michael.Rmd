@@ -88,7 +88,7 @@ BoxCox(inventory_train,lambda='auto') %>%
 ```{r}
 # predict inventory
 inventory_arima <- auto.arima(inventory_train, 
-                              lambda = 'auto')
+                              lambda = 0)
 inventory_preds <- forecast(inventory_arima, h=35)$mean
 
 # fit model and predict
@@ -99,7 +99,7 @@ fit <- auto.arima(rent_train,
 fit %>% summary()
 fit %>% checkresiduals()
 fit %>% 
-  forecast(h=24,
+  forecast(h=35,
            xreg=inventory_preds) %>% 
   autoplot()
 
@@ -138,11 +138,11 @@ arma_errors_df %>%
   scale_y_continuous(breaks=c(seq(3000,4200,400))) +
   geom_hline(yintercept=seq(2800,4200, by=200), size=0.1, linetype=2)
 
-  # ggsave("/rent_counterfactual_arma_error.png", 
-  #        path = '/Users/michaelwagner/dropbox/Q2/time_series/final/chicago_rental_index',
-  #        width=128,
-  #        height=96, 
-  #        units="mm")
+  ggsave("/rent_counterfactual_arma_error.png",
+         path = '/Users/michaelwagner/dropbox/Q2/time_series/final/chicago_rental_index',
+         width=128,
+         height=96,
+         units="mm")
 ```
 
 
@@ -170,7 +170,7 @@ rent_arma_err_inv_model = function(rent_series, covariate_series){
     order=c(0,1,0),
     seasonal=c(2,0,0),
     include.drift=FALSE,
-    lambda='auto',
+    lambda=0,
     method='CSS-ML'))}
 
 # rent and inventory
@@ -197,7 +197,7 @@ export <- sqrt(rowMeans((intermediate)**2,na.rm=TRUE)) %>%
   as_tibble() %>% 
   rename(RMSE_arma_errors_inventory = value)
 
-# write.csv(export, paste0(base_path, '/data/arma_error_inventory_results_cv.csv'))
+write.csv(export, paste0(base_path, '/data/arma_error_inventory_results_cv.csv'))
 
 #write.csv(DataFrame Name, "Path to export the DataFrame\\File Name.csv", row.names=FALSE)
 

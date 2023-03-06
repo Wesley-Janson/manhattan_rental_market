@@ -159,6 +159,12 @@ Inventory ETS: MAM (multiplicative error, additive trend, multiplicative seasona
 Dominated by error, with some trend contribution and very little seasonality. Only slightly damped. Residuals mostly look like white noise but Ljung-Box rejects at high significance level. RMSE 621.3574, MAE 469.1133, MAPE 2.705515.
 
 
+```{r}
+# rent counterfactual
+
+```
+
+
 ### Cross-validation
 
 ```{r}
@@ -255,8 +261,16 @@ ggsave("inventory_covid_effect.png", width=128, height=96, units="mm")
 
 ```{r}
 # rent ETS
-plot(forecast(rent_ets,length(rent_covid)))
-lines(rent_covid)
+autoplot(median_rent_manhattan, main = "COVID-19 Counterfactual - ETS", ylab="Median Rent ($)", xlab="Year") + 
+  forecast::autolayer(forecast(rent_ets,length(rent_covid))$mean, color="red") + 
+  theme_classic() +
+  theme(legend.position="none") +
+  labs(caption="Forecasted values of ETS(A,Ad,A) in red.") + 
+  scale_y_continuous(breaks=c(seq(3000,4200,400))) + 
+  geom_hline(yintercept=seq(2800,4200, by=200), linewidth=0.1, linetype=2)
+
+ggsave("rent_counterfactual_ets.png", width=128, height=96, units="mm")
+
 rent_effect_ets <- rent_covid-forecast(rent_ets,length(rent_covid))$mean
 upper_conf <- forecast(rent_ets,length(rent_covid))$upper[,2]-forecast(rent_ets,length(rent_covid))$mean
 lower_conf <- forecast(rent_ets,length(rent_covid))$lower[,2]-forecast(rent_ets,length(rent_covid))$mean
@@ -265,6 +279,19 @@ lines(upper_conf,col='blue')
 lines(lower_conf,col='blue')
 abline(h=0)
 mean(rent_effect_ets)
+```
+```{r}
+rent_effect <- rent_covid-forecast(rent_ets,length(rent_covid))$mean
+
+autoplot(rent_effect, main = "Estimated COVID Effect on Rent (via ETS)", ylab="Rent Effect", xlab="Year") + 
+  geom_hline(yintercept=0, size=0.5, linetype=1) +
+  theme_classic() +
+  theme(legend.position="none") +
+  scale_y_continuous(breaks=c(seq(-1000,600,200))) + 
+  geom_hline(yintercept=seq(-1000, 600, by=200), size=0.1, linetype=2) +
+  labs(caption = "Effect in relation to pre-COVID model predictions.")
+
+ggsave("rent_covid_effect_ets.png", width=128, height=96, units="mm")
 ```
 
 

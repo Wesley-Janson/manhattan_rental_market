@@ -75,7 +75,7 @@ autoplot(median_rent_manhattan, main = "Median Rent - Manhattan", ylab="Median R
   scale_y_continuous(breaks=c(seq(3000,4200,400))) + 
   geom_hline(yintercept=seq(2800,4200, by=200), size=0.1, linetype=2)
 
-ggsave("rent_raw_series.png", width=128, height=96, units="mm")
+ggsave("figures/rent_raw_series.png", width=128, height=96, units="mm")
 
 # Inventory
 autoplot(inventory_manhattan, main = "Inventory - Manhattan", ylab="Inventory", xlab="Year") + 
@@ -84,7 +84,7 @@ autoplot(inventory_manhattan, main = "Inventory - Manhattan", ylab="Inventory", 
   scale_y_continuous(breaks=c(seq(10000,40000,10000))) + 
   geom_hline(yintercept=seq(10000,40000, by=10000), size=0.1, linetype=2)
 
-ggsave("inventory_raw_series.png", width=128, height=96, units="mm")
+ggsave("figures/inventory_raw_series.png", width=128, height=96, units="mm")
 
 ```
 
@@ -232,7 +232,7 @@ autoplot(rent_effect, main = "Estimated COVID Effect on Rent (via ARIMA)", ylab=
   geom_hline(yintercept=seq(-1000, 600, by=200), size=0.1, linetype=2) +
   labs(caption = "Effect in relation to pre-COVID model predictions.")
 
-ggsave("rent_covid_effect.png", width=128, height=96, units="mm")
+ggsave("figures/rent_covid_effect.png", width=128, height=96, units="mm")
   
 ```
 
@@ -256,7 +256,7 @@ autoplot(inventory_effect, main = "Estimated COVID Effect on Inventory (via ARIM
   geom_hline(yintercept=seq(-6000, 26000, by=6000), size=0.1, linetype=2) +
   labs(caption = "Effect in relation to pre-COVID model predictions.")
 
-ggsave("inventory_covid_effect.png", width=128, height=96, units="mm")
+ggsave("figures/inventory_covid_effect.png", width=128, height=96, units="mm")
 ```
 
 ```{r}
@@ -269,7 +269,7 @@ autoplot(median_rent_manhattan, main = "COVID-19 Counterfactual - ETS", ylab="Me
   scale_y_continuous(breaks=c(seq(3000,4200,400))) + 
   geom_hline(yintercept=seq(2800,4200, by=200), linewidth=0.1, linetype=2)
 
-ggsave("rent_counterfactual_ets.png", width=128, height=96, units="mm")
+ggsave("figures/rent_counterfactual_ets.png", width=128, height=96, units="mm")
 
 rent_effect_ets <- rent_covid-forecast(rent_ets,length(rent_covid))$mean
 upper_conf <- forecast(rent_ets,length(rent_covid))$upper[,2]-forecast(rent_ets,length(rent_covid))$mean
@@ -291,7 +291,7 @@ autoplot(rent_effect, main = "Estimated COVID Effect on Rent (via ETS)", ylab="R
   geom_hline(yintercept=seq(-1000, 600, by=200), size=0.1, linetype=2) +
   labs(caption = "Effect in relation to pre-COVID model predictions.")
 
-ggsave("rent_covid_effect_ets.png", width=128, height=96, units="mm")
+ggsave("figures/rent_covid_effect_ets.png", width=128, height=96, units="mm")
 ```
 
 

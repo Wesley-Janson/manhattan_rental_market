@@ -5,8 +5,9 @@ Final project for MSCA 31006-Time Series Analysis and Forecasting. We examine th
 
 The project is organized in the following folders/documents:
 
-* Manhattan_Rental_Market_Slides.pdf: Slide deck used for final presentation.
+* **Manhattan_Rental_Market_Slides.pdf**: Slide deck used for final presentation.
 
-* data: Folder containing data from project.
+* **data**: Folder containing data from project.
 
-* figures: Folder containing graphs/figures used in final presentation.
+* **figures**: Folder containing graphs/figures used in final presentation.
+

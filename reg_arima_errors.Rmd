@@ -1,0 +1,250 @@
+---
+title: "analysis_michael"
+author: "Michael Wagner"
+date: "2023-02-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+```{r}
+rm(list=ls())
+library(tidyverse)
+library(tseries)
+library(forecast)
+library(TSA)
+library(vars)
+library(lubridate)
+library(stargazer)
+library(xtable)
+```
+
+### load data
+
+```{r}
+# set up generalizable path without local path hard coded
+base_path <- system('git rev-parse --show-toplevel', intern = T)
+
+# rental index - one for each of four real boroughs
+rental_index_raw <- read.csv(paste0(base_path, '/data/rentalIndex_All.csv'))
+# median asking rent - four real boroughs + 155 neighborhoods
+median_rent_raw <- read.csv(paste0(base_path, '/data/medianAskingRent_All.csv'))
+# rental inventory - four real boroughs + 155 neighborhoods
+inventory_raw <- read.csv(paste0(base_path, '/data/rentalInventory_All.csv'))
+
+```
+
+### clean and set train / test
+```{r}
+# rental_index_manhattan <- ts(rental_index_raw$Manhattan,
+#                              start=c(2007,1),
+#                              frequency=12)
+
+
+median_rent_manhattan <- median_rent_raw %>% 
+  filter(areaName=="Manhattan") %>%
+  unlist() %>% as.numeric() %>% 
+  na.omit() %>% 
+  ts(start=c(2010,1),frequency=12)
+
+
+inventory_manhattan <- inventory_raw %>% 
+  filter(areaName=="Manhattan") %>% 
+  unlist() %>% as.numeric() %>% 
+  na.omit() %>%
+  ts(start=c(2010,1),frequency=12)
+
+
+rent_train <- window(median_rent_manhattan, start=2010, end=c(2020,1))
+inventory_train <- window(inventory_manhattan, start=2010, end=c(2020,1))
+rent_test <- window(median_rent_manhattan, start=c(2020,2), end=c(2022,12))
+inventory_test <- window(inventory_manhattan, start=c(2020,2), end=c(2022,12))
+```
+
+### Trying visualizations and transformations
+```{r}
+inventory_train %>% autoplot()
+
+# log
+log(rent_train) %>%
+  cbind(log(inventory_train)) %>%
+  autoplot()
+
+#trying transformations
+BoxCox(rent_train,lambda='auto') %>% autoplot()
+BoxCox(inventory_train,lambda='auto') %>% autoplot()
+
+inventory_train %>% tsdisplay()
+#train %>% diff(lag=12, differences = 1) %>% tsdisplay()
+
+BoxCox(inventory_train,lambda='auto') %>% 
+  diff(lag=1, differences=1) %>% 
+  tsdisplay()
+```
+
+### Regression ARMA errors
+```{r}
+# predict inventory
+inventory_arima <- auto.arima(inventory_train, 
+                              lambda = 0)
+inventory_preds <- forecast(inventory_arima, h=35)$mean
+
+# fit model and predict
+fit <- auto.arima(rent_train,
+                  lambda = 'auto',
+                  xreg = inventory_train)
+
+fit %>% summary()
+fit %>% checkresiduals()
+fit %>% 
+  forecast(h=35,
+           xreg=inventory_preds) %>% 
+  autoplot()
+
+model_forecast <- fit %>% 
+  forecast(h=35,
+           xreg=inventory_preds)
+
+```
+
+```{r}
+# combine the time series and forecast objects into one data frame
+length_diff <- length(as.numeric(median_rent_manhattan)) - length(as.numeric(model_forecast$mean))
+
+
+c(rep(NA,length_diff),as.numeric(model_forecast$mean))
+model_forecast
+median_rent_manhattan
+
+
+arma_errors_df <- data.frame(
+  date = index(median_rent_manhattan),
+  actual = as.numeric(median_rent_manhattan),
+  forecast = c(rep(NA,length_diff),as.numeric(model_forecast$mean))
+)
+
+
+arma_errors_df %>% 
+  ggplot(aes(x = date)) +
+  geom_line(aes(y = actual), color = "black") +
+  geom_line(aes(y = forecast), color = "red") +
+  theme(legend.position="none") +
+  theme_classic() +
+  labs(caption="Forecasted values of Regression with Arma Errors model in red.",
+       y = 'Median Rent',
+       x='') +
+  scale_y_continuous(breaks=c(seq(3000,4200,400))) +
+  geom_hline(yintercept=seq(2800,4200, by=200), size=0.1, linetype=2)
+
+  ggsave("/rent_counterfactual_arma_error.png",
+         path = '/Users/michaelwagner/dropbox/Q2/time_series/final/chicago_rental_index',
+         width=128,
+         height=96,
+         units="mm")
+```
+
+
+### Cross Validation
+```{r Drew Code}
+source(paste0(base_path, '/cross_validation_michael.R'))
+
+# # predict inventory
+# inventory_arima <- auto.arima(inventory_train, 
+#                               lambda = 'auto')
+# inventory_preds <- forecast(inventory_arima, h=24)$mean
+
+# rent_SARIMA_model = function(training_data){
+#   return(Arima(
+#     training_data,order=c(0,1,0),seasonal=c(2,0,0),
+#     include.drift=FALSE,lambda=rent_lambda,method='CSS-ML'))}
+
+rent_series <- rent_train
+covariate_series <- inventory_train
+
+rent_arma_err_inv_model = function(rent_series, covariate_series){
+  return(Arima(
+    rent_series,
+    covariate_series,
+    order=c(0,1,0),
+    seasonal=c(2,0,0),
+    include.drift=FALSE,
+    lambda=0,
+    method='CSS-ML'))}
+
+# rent and inventory
+output_arma_err_inv <- cross.validate(model = rent_arma_err_inv_model, 
+                                      covariate_series = inventory_train, 
+                                      rent_series = rent_train, 
+                                      n_window = 80, 
+                                      n_forecast = 12)
+
+#output_arima[[1]]
+
+generate.plots(output_arma_err_inv)
+```
+
+Generate data for plot building CV comparison
+```{r}
+
+
+intermediate <- data.frame(matrix(unlist(output_arma_err_inv[[2]]), 
+                                  ncol = 12, 
+                                  byrow = TRUE))
+
+export <- sqrt(rowMeans((intermediate)**2,na.rm=TRUE)) %>% 
+  as_tibble() %>% 
+  rename(RMSE_arma_errors_inventory = value)
+
+write.csv(export, paste0(base_path, '/data/arma_error_inventory_results_cv.csv'))
+
+#write.csv(DataFrame Name, "Path to export the DataFrame\\File Name.csv", row.names=FALSE)
+
+
+
+# arma_error_inventory_rmse_exp <- 
+#   data.frame(matrix(unlist(output_arma_err_inv[[2]]),
+#                     ncol = 12, 
+#                     byrow = T)) 
+# 
+# arma_error_inventory_rmse_exp <- 
+#   sqrt(colMeans((arma_error_inventory_rmse_exp)**2,na.rm=TRUE))
+# 
+# arma_error_inventory_rmse_exp <- 
+#   matrix(arma_error_inventory_rmse_exp) %>% 
+#   as_tibble() %>% 
+#   rename(RMSE_arma_errors_inventory = V1)
+```
+
+
+### Attempt at intervention
+
+```{r}
+# Calculate the number of observations before the intervention date
+num_obs_before <- 122
+# Calculate the number of observations after the intervention date
+num_obs_after <- 34
+# Create a vector of 0s and 1s to represent the intervention variable
+intervention_vec <- rep(c(0, 1), c(num_obs_before, num_obs_after))
+
+# Convert the vector to a time series object with the same start and frequency as the AirPassengers data
+#intervention_ts <- ts(intervention_vec, start = c(2010, 1), frequency = 12)
+xreg_with_intervention <- cbind(inventory_train, intervention_ts)
+
+#fit model and predict
+fit <- auto.arima(median_rent_manhattan,
+                  lambda = 'auto',
+                  xreg = xreg_with_intervention)
+
+#ARIMA(0,1,0)(2,0,0)[12] errors 
+# fit <- arimax(median_rent_manhattan, 
+#               order = c(0,1,0),
+#               seasonal = list(order=c(0,1,1)),
+#               xreg = intervention_ts)
+
+fit %>% summary()
+fit %>% checkresiduals()
+auto.arima(median_rent_manhattan) %>% checkresiduals()
+```
+
